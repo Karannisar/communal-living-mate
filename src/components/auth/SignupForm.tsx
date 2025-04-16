@@ -16,39 +16,52 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
-const formSchema = z.object({
+const signupSchema = z.object({
+  fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  role: z.enum(["student", "admin", "security", "mess"], {
+    required_error: "Please select a role",
+  }),
 });
 
-type FormValues = z.infer<typeof formSchema>;
+type SignupValues = z.infer<typeof signupSchema>;
 
-interface LoginFormProps {
-  onLogin: () => Promise<void>;
-  onSignupClick: () => void;
+interface SignupFormProps {
+  onSignup?: () => void;
+  onLoginClick: () => void;
 }
 
-export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
+export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
-  const form = useForm<FormValues>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<SignupValues>({
+    resolver: zodResolver(signupSchema),
     defaultValues: {
+      fullName: "",
       email: "",
       password: "",
+      role: "student",
     },
   });
 
-  const handleSubmit = async (values: FormValues) => {
+  const handleSubmit = async (values: SignupValues) => {
     try {
       setLoading(true);
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
+        options: {
+          data: {
+            full_name: values.fullName,
+            role: values.role,
+          },
+        },
       });
       
       if (error) {
@@ -62,10 +75,10 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
       
       toast({
         title: "Success",
-        description: "Login successful!",
+        description: "Your account has been created. Please check your email for verification.",
       });
       
-      await onLogin();
+      if (onSignup) onSignup();
     } catch (error) {
       console.error(error);
       toast({
@@ -82,12 +95,29 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
     <Card className="w-full max-w-md mx-auto shadow-xl animate-slide-up">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center">
-          Sign in to your account
+          Create your account
         </CardTitle>
       </CardHeader>
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="fullName"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Full Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="John Doe"
+                      {...field}
+                      className="hover-lift"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="email"
@@ -124,25 +154,48 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
                 </FormItem>
               )}
             />
+            <FormField
+              control={form.control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a role" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="student">Student</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="security">Security</SelectItem>
+                      <SelectItem value="mess">Mess Staff</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing In...
+                  Creating Account...
                 </>
               ) : (
-                "Sign In"
+                "Sign Up"
               )}
             </Button>
             <div className="text-center mt-4">
               <p className="text-sm text-muted-foreground">
-                Don't have an account?{" "}
+                Already have an account?{" "}
                 <Button 
                   variant="link" 
                   className="p-0 h-auto" 
-                  onClick={onSignupClick}
+                  onClick={onLoginClick}
                 >
-                  Sign Up
+                  Sign In
                 </Button>
               </p>
             </div>
