@@ -1,1 +1,29 @@
+
+# A string used to distinguish different Supabase projects on the same host. Defaults to the project ID.
 project_id = "kbqqepdhtfhrcfmomzhe"
+
+[api]
+# Port to use for the API URL.
+port = 54321
+# Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
+# endpoints. public and storage are always included.
+schemas = ["public", "storage"]
+# Extra schemas to add to the search_path of every request. public is always included.
+extra_search_path = ["public", "extensions"]
+# The maximum number of rows returns from a view, table, or stored procedure. Limits payload size
+# for accidental or malicious requests.
+max_rows = 1000
+
+[db]
+# Port to use for the local database URL.
+port = 54322
+
+[studio]
+# Port to use for Supabase Studio.
+port = 54323
+# External URL of the API server that frontend connects to.
+api_url = "http://127.0.0.1:54321"
+
+[functions]
+[functions.openrouter-chat]
+verify_jwt = true

@@ -1,10 +1,9 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { AIAssistant } from "@/components/ai/AIAssistant";
+import { OpenRouterChatbot } from "@/components/ai/OpenRouterChatbot";
 import {
   BedDouble,
   CalendarClock,
@@ -36,7 +35,7 @@ export function StudentDashboard() {
 
   return (
     <div className="space-y-6">
-      <AIAssistant />
+      <OpenRouterChatbot />
       <h2 className="text-3xl font-bold tracking-tight">Welcome, Student</h2>
       
       <div className="grid gap-4 md:grid-cols-2">
