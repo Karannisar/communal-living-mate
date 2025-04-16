@@ -45,7 +45,25 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
     try {
       setLoading(true);
       
-      // Hardcoded admin credentials
+      // First verify the password using the custom function
+      const { data: verifyData, error: verifyError } = await supabase.rpc(
+        'verify_password',
+        { 
+          email: 'admin@dormmate.com',
+          password: 'admin123456'
+        }
+      );
+      
+      if (verifyError || !verifyData) {
+        toast({
+          title: "Error",
+          description: "Invalid admin credentials",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // If password is verified, proceed with sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: "admin@dormmate.com",
         password: "admin123456",
@@ -58,29 +76,6 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
           variant: "destructive",
         });
         return;
-      }
-      
-      // Ensure the admin user exists in the users table
-      const { error: userCheckError, data: userExists } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', 'admin@dormmate.com')
-        .single();
-        
-      if (userCheckError || !userExists) {
-        // Create admin user in the users table if it doesn't exist
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: 'admin@dormmate.com',
-            full_name: 'Admin User',
-            role: 'admin'
-          });
-          
-        if (insertError) {
-          console.error("Error ensuring admin user:", insertError);
-        }
       }
       
       toast({
@@ -105,6 +100,25 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
     try {
       setLoading(true);
       
+      // First verify the password
+      const { data: verifyData, error: verifyError } = await supabase.rpc(
+        'verify_password',
+        { 
+          email: values.email,
+          password: values.password
+        }
+      );
+      
+      if (verifyError || !verifyData) {
+        toast({
+          title: "Error",
+          description: "Invalid credentials",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // If password is verified, proceed with sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
@@ -133,6 +147,7 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
           .insert({
             id: data.user.id,
             email: values.email,
+            password_hash: await supabase.rpc('hash_password', { password: values.password }),
             role: 'student'
           });
           

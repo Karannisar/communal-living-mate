@@ -49,17 +49,7 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
       setLoading(true);
       
       // All new users are assigned 'student' role by default
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
-        options: {
-          data: {
-            full_name: values.fullName,
-            role: 'student',
-          },
-        },
-      });
-      
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name, role } } });
       if (error) {
         toast({
           title: "Error",
