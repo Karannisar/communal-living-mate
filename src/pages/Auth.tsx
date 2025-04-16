@@ -14,16 +14,38 @@ const Auth = () => {
     const checkSession = async () => {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        // Redirect to appropriate dashboard based on role
-        const { data: userData } = await supabase
+        // Check for admin login first
+        if (data.session.user.email === "admin@dormmate.com") {
+          navigate('/admin');
+          return;
+        }
+        
+        // For other users, check their role from the database
+        const { data: userData, error } = await supabase
           .from('users')
           .select('role')
           .eq('id', data.session.user.id)
-          .single();
+          .maybeSingle();
         
         if (userData?.role) {
           navigate(`/${userData.role}`);
+        } else if (error) {
+          console.error("Error fetching user role:", error);
+          navigate('/student'); // Default to student if error
         } else {
+          // If no role found in the database, create a student role
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: data.session.user.id,
+              email: data.session.user.email,
+              role: 'student'
+            });
+            
+          if (insertError) {
+            console.error("Error creating user record:", insertError);
+          }
+          
           navigate('/student'); // Default to student if role not found
         }
       }
@@ -40,23 +62,62 @@ const Auth = () => {
     try {
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        // For the hardcoded admin login or any existing admin user
+        // For the hardcoded admin login
         const email = data.session.user.email;
         if (email === "admin@dormmate.com") {
+          // Ensure admin exists in the users table
+          const { error: userCheckError, data: userExists } = await supabase
+            .from('users')
+            .select('*')
+            .eq('email', 'admin@dormmate.com')
+            .maybeSingle();
+            
+          if (userCheckError || !userExists) {
+            // Create admin user in the users table if it doesn't exist
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert({
+                id: data.session.user.id,
+                email: 'admin@dormmate.com',
+                full_name: 'Admin User',
+                role: 'admin'
+              });
+              
+            if (insertError) {
+              console.error("Error ensuring admin user:", insertError);
+            }
+          }
+          
           navigate('/admin');
           return;
         }
         
         // For regular users, check their role
-        const { data: userData } = await supabase
+        const { data: userData, error } = await supabase
           .from('users')
           .select('role')
           .eq('id', data.session.user.id)
-          .single();
+          .maybeSingle();
         
         if (userData?.role) {
           navigate(`/${userData.role}`);
+        } else if (error) {
+          console.error("Error fetching user role:", error);
+          navigate('/student'); // Default to student if error
         } else {
+          // If no role found in the database, create a student role
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert({
+              id: data.session.user.id,
+              email: data.session.user.email,
+              role: 'student'
+            });
+            
+          if (insertError) {
+            console.error("Error creating user record:", insertError);
+          }
+          
           navigate('/student'); // Default to student if role not found
         }
       }

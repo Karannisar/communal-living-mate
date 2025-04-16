@@ -69,6 +69,23 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
         return;
       }
       
+      // Manually create a record in the users table to ensure it's there
+      if (data.user) {
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            email: values.email,
+            full_name: values.fullName,
+            role: 'student'
+          });
+          
+        if (insertError) {
+          console.error("Error inserting user data:", insertError);
+          // Don't show this error to user if the trigger already added the user
+        }
+      }
+      
       toast({
         title: "Success",
         description: "Your account has been created. Please check your email for verification.",

@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -13,7 +12,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +46,7 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
       setLoading(true);
       
       // Hardcoded admin credentials
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: "admin@dormmate.com",
         password: "admin123456",
       });
@@ -59,6 +58,29 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
           variant: "destructive",
         });
         return;
+      }
+      
+      // Ensure the admin user exists in the users table
+      const { error: userCheckError, data: userExists } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', 'admin@dormmate.com')
+        .single();
+        
+      if (userCheckError || !userExists) {
+        // Create admin user in the users table if it doesn't exist
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            email: 'admin@dormmate.com',
+            full_name: 'Admin User',
+            role: 'admin'
+          });
+          
+        if (insertError) {
+          console.error("Error ensuring admin user:", insertError);
+        }
       }
       
       toast({
@@ -83,7 +105,7 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
     try {
       setLoading(true);
       
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
@@ -95,6 +117,28 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
           variant: "destructive",
         });
         return;
+      }
+      
+      // Ensure the user exists in the users table
+      const { error: userCheckError, data: userExists } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', values.email)
+        .maybeSingle();
+        
+      if (userCheckError || !userExists) {
+        // Create user in the users table if it doesn't exist
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            id: data.user.id,
+            email: values.email,
+            role: 'student'
+          });
+          
+        if (insertError) {
+          console.error("Error ensuring user exists:", insertError);
+        }
       }
       
       toast({
