@@ -52,6 +52,26 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				admin: {
+					DEFAULT: '#403E43',
+					dark: '#221F26',
+					foreground: '#ffffff'
+				},
+				student: {
+					DEFAULT: '#D3E4FD',
+					dark: '#33C3F0',
+					foreground: '#333333'
+				},
+				security: {
+					DEFAULT: '#6E364A',
+					dark: '#4A1D2F',
+					foreground: '#ffffff'
+				},
+				mess: {
+					DEFAULT: '#FDE1D3',
+					dark: '#F1A683',
+					foreground: '#333333'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
