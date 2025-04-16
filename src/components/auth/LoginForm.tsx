@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +41,43 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
       password: "",
     },
   });
+
+  const handleAdminLogin = async () => {
+    try {
+      setLoading(true);
+      
+      // Hardcoded admin credentials
+      const { error } = await supabase.auth.signInWithPassword({
+        email: "admin@dormmate.com",
+        password: "admin123456",
+      });
+      
+      if (error) {
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Success",
+        description: "Admin login successful!",
+      });
+      
+      await onLogin();
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (values: FormValues) => {
     try {
@@ -134,6 +171,34 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
                 "Sign In"
               )}
             </Button>
+            
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
+            
+            <Button 
+              type="button" 
+              className="w-full bg-admin hover:bg-admin/90" 
+              onClick={handleAdminLogin}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                "Login as Admin"
+              )}
+            </Button>
+            
             <div className="text-center mt-4">
               <p className="text-sm text-muted-foreground">
                 Don't have an account?{" "}

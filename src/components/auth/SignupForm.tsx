@@ -16,16 +16,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
 const signupSchema = z.object({
   fullName: z.string().min(3, "Full name must be at least 3 characters"),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
-  role: z.enum(["student", "admin", "security", "mess"], {
-    required_error: "Please select a role",
-  }),
 });
 
 type SignupValues = z.infer<typeof signupSchema>;
@@ -45,7 +41,6 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
       fullName: "",
       email: "",
       password: "",
-      role: "student",
     },
   });
 
@@ -53,13 +48,14 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
     try {
       setLoading(true);
       
+      // All new users are assigned 'student' role by default
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
           data: {
             full_name: values.fullName,
-            role: values.role,
+            role: 'student',
           },
         },
       });
@@ -150,29 +146,6 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
                       className="hover-lift"
                     />
                   </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="student">Student</SelectItem>
-                      <SelectItem value="admin">Admin</SelectItem>
-                      <SelectItem value="security">Security</SelectItem>
-                      <SelectItem value="mess">Mess Staff</SelectItem>
-                    </SelectContent>
-                  </Select>
                   <FormMessage />
                 </FormItem>
               )}

@@ -1,11 +1,9 @@
 
-import { useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { useState, useEffect } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect } from "react";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -25,6 +23,8 @@ const Auth = () => {
         
         if (userData?.role) {
           navigate(`/${userData.role}`);
+        } else {
+          navigate('/student'); // Default to student if role not found
         }
       }
     };
@@ -37,19 +37,32 @@ const Auth = () => {
   };
 
   const handleLoginSuccess = async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('role')
-        .eq('id', data.session.user.id)
-        .single();
-      
-      if (userData?.role) {
-        navigate(`/${userData.role}`);
-      } else {
-        navigate('/student'); // Default to student if role not found
+    try {
+      const { data } = await supabase.auth.getSession();
+      if (data.session) {
+        // For the hardcoded admin login or any existing admin user
+        const email = data.session.user.email;
+        if (email === "admin@dormmate.com") {
+          navigate('/admin');
+          return;
+        }
+        
+        // For regular users, check their role
+        const { data: userData } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', data.session.user.id)
+          .single();
+        
+        if (userData?.role) {
+          navigate(`/${userData.role}`);
+        } else {
+          navigate('/student'); // Default to student if role not found
+        }
       }
+    } catch (error) {
+      console.error("Error during login success handling:", error);
+      navigate('/student'); // Default fallback
     }
   };
 

@@ -8,6 +8,7 @@ import { Suspense, lazy, useEffect } from "react";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminPage = lazy(() => import("./pages/dashboard/Admin"));
 const StudentPage = lazy(() => import("./pages/dashboard/Student"));
