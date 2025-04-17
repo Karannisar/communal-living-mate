@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -83,25 +84,7 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
     try {
       setLoading(true);
       
-      // First, verify the password using the custom function
-      const { data: verifyData, error: verifyError } = await supabase.rpc(
-        'verify_password',
-        { 
-          email: values.email,
-          password: values.password
-        }
-      );
-      
-      if (verifyError || !verifyData) {
-        toast({
-          title: "Error",
-          description: "Invalid credentials",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // If password is verified, proceed with sign in
+      // Directly sign in with password - skip the verify_password RPC call
       const { data, error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,

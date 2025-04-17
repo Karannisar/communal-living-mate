@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -48,7 +47,7 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
     try {
       setLoading(true);
       
-      // Register user with Supabase Auth
+      // Register user with Supabase Auth - no need for email confirmation
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
