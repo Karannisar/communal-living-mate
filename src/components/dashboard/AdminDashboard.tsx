@@ -62,6 +62,7 @@ export function AdminDashboard() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [roomsList, setRoomsList] = useState<any[]>([]);
   const [complaintsData, setComplaintsData] = useState<any[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
@@ -69,22 +70,6 @@ export function AdminDashboard() {
   const [isEditRoomDialogOpen, setIsEditRoomDialogOpen] = useState(false);
   const { toast } = useToast();
   
-  // Mock recent entries data
-  const recentEntries = [
-    { id: "SID19254", name: "Emma Wilson", time: "08:45 AM", status: "check-in" },
-    { id: "SID18742", name: "Michael Brown", time: "08:30 AM", status: "check-in" },
-    { id: "SID19861", name: "Sophia Lee", time: "07:55 AM", status: "check-in" },
-    { id: "SID17503", name: "Daniel Kim", time: "11:20 PM", status: "check-out", date: "Yesterday" },
-    { id: "SID18965", name: "Olivia Singh", time: "10:45 PM", status: "check-out", date: "Yesterday" }
-  ];
-  
-  // Mock alerts
-  const securityAlerts = [
-    { id: "SID17423", name: "Noah Johnson", message: "No entry record for 2 days", severity: "high" },
-    { id: "SID18562", name: "Ava Martinez", message: "Multiple entries without checkout", severity: "medium" },
-    { id: "SID19123", name: "James Wilson", message: "Late night entry (2:00 AM)", severity: "low" }
-  ];
-
   // Form states for editing
   const [editUserForm, setEditUserForm] = useState({
     full_name: "",
@@ -126,6 +111,15 @@ export function AdminDashboard() {
           .select('*');
         
         if (complaintsError) throw complaintsError;
+        
+        // Fetch attendance data
+        const { data: attendanceData, error: attendanceError } = await supabase
+          .from('attendance')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(50);
+          
+        if (attendanceError) throw attendanceError;
         
         // Update states with fetched data
         if (roomsData) {
@@ -169,6 +163,10 @@ export function AdminDashboard() {
             resolved: resolvedComplaints
           });
           setComplaintsData(complaintsData);
+        }
+        
+        if (attendanceData) {
+          setAttendanceRecords(attendanceData);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
@@ -409,6 +407,66 @@ export function AdminDashboard() {
     }
   };
 
+  // Handle attendance records
+  const recordAttendance = async (userId: string, type: 'check_in' | 'check_out') => {
+    const today = new Date().toISOString().split('T')[0];
+    const timestamp = new Date().toISOString();
+    
+    try {
+      // Check if an attendance record already exists for today
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('date', today)
+        .maybeSingle();
+        
+      if (fetchError) throw fetchError;
+      
+      if (existingRecord) {
+        // Update existing record
+        const updateData = type === 'check_in' 
+          ? { check_in: timestamp } 
+          : { check_out: timestamp };
+          
+        const { error: updateError } = await supabase
+          .from('attendance')
+          .update(updateData)
+          .eq('id', existingRecord.id);
+          
+        if (updateError) throw updateError;
+      } else {
+        // Create new record
+        const newRecord = {
+          user_id: userId,
+          date: today,
+          ...(type === 'check_in' ? { check_in: timestamp } : { check_out: timestamp })
+        };
+        
+        const { error: insertError } = await supabase
+          .from('attendance')
+          .insert([newRecord]);
+          
+        if (insertError) throw insertError;
+      }
+      
+      toast({
+        title: "Success",
+        description: `${type === 'check_in' ? 'Check-in' : 'Check-out'} recorded successfully`,
+      });
+      
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error recording attendance:", error);
+      toast({
+        title: "Error",
+        description: error.message || `Failed to record ${type}`,
+        variant: "destructive"
+      });
+    }
+  };
+
   // Filtered data based on search
   const filteredUsers = usersList.filter(user => 
     user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -419,6 +477,12 @@ export function AdminDashboard() {
     room.room_number?.toLowerCase().includes(searchQuery.toLowerCase()) || 
     room.floor?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const filteredAttendance = attendanceRecords.filter(record => {
+    const user = usersList.find(u => u.id === record.user_id);
+    return user?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+           user?.email?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
   return (
     <div className="space-y-6">
@@ -479,13 +543,12 @@ export function AdminDashboard() {
       </div>
       
       <Tabs defaultValue="analytics" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-6 md:w-[600px]">
+        <TabsList className="grid grid-cols-5 md:w-[600px]">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="rooms">Rooms</TabsTrigger>
           <TabsTrigger value="complaints">Complaints</TabsTrigger>
           <TabsTrigger value="security">Security</TabsTrigger>
-          <TabsTrigger value="bookings">Bookings</TabsTrigger>
         </TabsList>
         
         <TabsContent value="analytics" className="space-y-6">
@@ -661,6 +724,7 @@ export function AdminDashboard() {
                       >
                         <option value="student">Student</option>
                         <option value="admin">Admin</option>
+                        <option value="security">Security</option>
                         <option value="mess">Mess Staff</option>
                       </select>
                     </div>
@@ -713,6 +777,7 @@ export function AdminDashboard() {
                             className={`${
                               user.role === 'admin' ? 'bg-admin text-admin-foreground' :
                               user.role === 'student' ? 'bg-student text-student-foreground' :
+                              user.role === 'security' ? 'bg-blue-100 text-blue-800' :
                               'bg-mess text-mess-foreground'
                             }`}
                           >
@@ -900,41 +965,45 @@ export function AdminDashboard() {
                     <p className="text-muted-foreground">No complaints found.</p>
                   </div>
                 ) : (
-                  complaintsData.map((complaint) => (
-                    <div key={complaint.id} className="p-4 border rounded-lg hover-scale-sm">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <h4 className="font-semibold">{complaint.title}</h4>
-                          <p className="text-sm text-muted-foreground">
-                            Room: {complaint.room_id || 'Not specified'} | 
-                            Reported: {new Date(complaint.created_at).toLocaleDateString()}
-                          </p>
+                  complaintsData.map((complaint) => {
+                    const complainant = usersList.find(user => user.id === complaint.user_id);
+                    return (
+                      <div key={complaint.id} className="p-4 border rounded-lg hover-scale-sm">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-semibold">{complaint.title}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              From: {complainant?.full_name || 'Unknown'} | 
+                              Room: {complaint.room_id || 'Not specified'} | 
+                              Reported: {new Date(complaint.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <Badge 
+                            className={
+                              complaint.status === 'open' ? 'bg-destructive text-destructive-foreground' :
+                              complaint.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }
+                          >
+                            {complaint.status}
+                          </Badge>
                         </div>
-                        <Badge 
-                          className={
-                            complaint.status === 'open' ? 'bg-destructive text-destructive-foreground' :
-                            complaint.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-green-100 text-green-800'
-                          }
-                        >
-                          {complaint.status}
-                        </Badge>
+                        <p className="mt-2">{complaint.description}</p>
+                        <div className="mt-4 flex justify-end space-x-2">
+                          {complaint.status === 'open' && (
+                            <Button size="sm" variant="outline" onClick={() => updateComplaintStatus(complaint.id, 'in_progress')}>
+                              Mark In Progress
+                            </Button>
+                          )}
+                          {(complaint.status === 'open' || complaint.status === 'in_progress') && (
+                            <Button size="sm" onClick={() => updateComplaintStatus(complaint.id, 'resolved')}>
+                              Mark Resolved
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <p className="mt-2">{complaint.description}</p>
-                      <div className="mt-4 flex justify-end space-x-2">
-                        {complaint.status === 'open' && (
-                          <Button size="sm" variant="outline" onClick={() => updateComplaintStatus(complaint.id, 'in_progress')}>
-                            Mark In Progress
-                          </Button>
-                        )}
-                        {(complaint.status === 'open' || complaint.status === 'in_progress') && (
-                          <Button size="sm" onClick={() => updateComplaintStatus(complaint.id, 'resolved')}>
-                            Mark Resolved
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </CardContent>
@@ -942,7 +1011,7 @@ export function AdminDashboard() {
         </TabsContent>
         
         <TabsContent value="security" className="space-y-4">
-          {/* Security Dashboard */}
+          {/* Security Dashboard - Integrated from the standalone Security Dashboard */}
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <h3 className="text-xl font-medium">Security Dashboard</h3>
@@ -959,10 +1028,16 @@ export function AdminDashboard() {
                   <CardTitle className="text-sm font-medium">Today's Check-ins</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">187</div>
+                  <div className="text-2xl font-bold">
+                    {attendanceRecords.filter(r => r.check_in && new Date(r.check_in).toDateString() === new Date().toDateString()).length}
+                  </div>
                   <div className="flex items-center mt-1">
                     <UserCheck className="h-4 w-4 text-green-600 mr-1" />
-                    <span className="text-xs text-green-600">98% of residents</span>
+                    <span className="text-xs text-green-600">
+                      {usersList.filter(u => u.role === 'student').length ? 
+                        Math.round((attendanceRecords.filter(r => r.check_in && new Date(r.check_in).toDateString() === new Date().toDateString()).length / 
+                        usersList.filter(u => u.role === 'student').length) * 100) : 0}% of residents
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -972,10 +1047,16 @@ export function AdminDashboard() {
                   <CardTitle className="text-sm font-medium">Today's Check-outs</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">59</div>
+                  <div className="text-2xl font-bold">
+                    {attendanceRecords.filter(r => r.check_out && new Date(r.check_out).toDateString() === new Date().toDateString()).length}
+                  </div>
                   <div className="flex items-center mt-1">
                     <UserX className="h-4 w-4 text-muted-foreground mr-1" />
-                    <span className="text-xs text-muted-foreground">31% of residents</span>
+                    <span className="text-xs text-muted-foreground">
+                      {usersList.filter(u => u.role === 'student').length ? 
+                        Math.round((attendanceRecords.filter(r => r.check_out && new Date(r.check_out).toDateString() === new Date().toDateString()).length / 
+                        usersList.filter(u => u.role === 'student').length) * 100) : 0}% of residents
+                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -985,23 +1066,35 @@ export function AdminDashboard() {
                   <CardTitle className="text-sm font-medium">Current Outside</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">128</div>
+                  <div className="text-2xl font-bold">
+                    {attendanceRecords.filter(r => 
+                      r.check_in && 
+                      !r.check_out && 
+                      new Date(r.check_in).toDateString() === new Date().toDateString()
+                    ).length}
+                  </div>
                   <div className="flex items-center mt-1">
                     <Clock className="h-4 w-4 text-muted-foreground mr-1" />
-                    <span className="text-xs text-muted-foreground">Since 6:00 AM</span>
+                    <span className="text-xs text-muted-foreground">Since today</span>
                   </div>
                 </CardContent>
               </Card>
               
               <Card className="hover-scale">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium">Alerts</CardTitle>
+                  <CardTitle className="text-sm font-medium">Missing Check-ins</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">3</div>
+                  <div className="text-2xl font-bold">
+                    {usersList.filter(u => u.role === 'student').length - 
+                     attendanceRecords.filter(r => 
+                       r.check_in && 
+                       new Date(r.check_in).toDateString() === new Date().toDateString()
+                     ).length}
+                  </div>
                   <div className="flex items-center mt-1">
                     <AlertCircle className="h-4 w-4 text-destructive mr-1" />
-                    <span className="text-xs text-destructive">Requires attention</span>
+                    <span className="text-xs text-destructive">Not checked in today</span>
                   </div>
                 </CardContent>
               </Card>
@@ -1011,7 +1104,7 @@ export function AdminDashboard() {
             <Card className="hover-scale">
               <CardHeader>
                 <CardTitle>Student Attendance Scanner</CardTitle>
-                <CardDescription>Scan student ID for check-in/out</CardDescription>
+                <CardDescription>Record student check-in/out</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex flex-col md:flex-row gap-4">
@@ -1052,182 +1145,111 @@ export function AdminDashboard() {
                   </Button>
                 </div>
                 
-                <div className="flex justify-center border-2 border-dashed rounded-lg p-6">
-                  <div className="text-center">
-                    <QrCode className="h-24 w-24 mx-auto text-muted-foreground animate-pulse" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                      Ready to scan student ID. Please align the QR code within the frame.
-                    </p>
+                {filteredUsers.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <h4 className="text-sm font-semibold">Search Results:</h4>
+                    {filteredUsers.slice(0, 5).map(user => (
+                      <div key={user.id} className="flex justify-between items-center p-3 border rounded-md hover:bg-accent">
+                        <div>
+                          <p className="font-medium">{user.full_name || 'N/A'}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
+                        </div>
+                        <div className="flex space-x-2">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => recordAttendance(user.id, 'check_in')}
+                          >
+                            Check In
+                          </Button>
+                          <Button 
+                            size="sm"
+                            onClick={() => recordAttendance(user.id, 'check_out')}
+                          >
+                            Check Out
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
+                
+                {searchQuery && filteredUsers.length === 0 && (
+                  <div className="text-center p-4 border-2 border-dashed rounded-lg">
+                    <p className="text-muted-foreground">No matching students found</p>
+                  </div>
+                )}
+                
+                {!searchQuery && (
+                  <div className="flex justify-center border-2 border-dashed rounded-lg p-6">
+                    <div className="text-center">
+                      <QrCode className="h-24 w-24 mx-auto text-muted-foreground animate-pulse" />
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        Search for a student or scan QR code to record attendance
+                      </p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
-              <CardFooter className="flex justify-between">
-                <div>
-                  <span className="text-sm text-muted-foreground">Scanner Status:</span>
-                  <Badge className="ml-2 bg-green-100 text-green-800">Ready</Badge>
-                </div>
-                <Button variant="secondary" size="sm" className="hover-scale">
-                  Manual Entry
-                </Button>
-              </CardFooter>
             </Card>
             
-            <Tabs defaultValue="recent" className="space-y-4">
-              <TabsList className="grid grid-cols-2 w-[400px]">
-                <TabsTrigger value="recent" className="flex items-center gap-2">
-                  <CalendarCheck className="h-4 w-4" />
-                  Recent Entries
-                </TabsTrigger>
-                <TabsTrigger value="alerts" className="flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Alerts
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="recent" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Recent Activity</CardTitle>
-                    <CardDescription>Latest student check-ins and check-outs</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {recentEntries.map((entry, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 rounded-md border hover:bg-accent hover-scale animate-fade-in">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Attendance Records</CardTitle>
+                <CardDescription>Latest student check-ins and check-outs</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {filteredAttendance.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground">No attendance records found.</p>
+                    </div>
+                  ) : (
+                    filteredAttendance.slice(0, 10).map((record) => {
+                      const student = usersList.find(u => u.id === record.user_id);
+                      return (
+                        <div key={record.id} className="flex items-center justify-between p-3 rounded-md border hover:bg-accent hover-scale animate-fade-in">
                           <div className="flex items-center space-x-3">
-                            <div className={`p-2 rounded-full ${
-                              entry.status === "check-in" ? "bg-green-100" : "bg-blue-100"
-                            }`}>
-                              {entry.status === "check-in" ? (
-                                <UserCheck className={`h-4 w-4 ${entry.status === "check-in" ? "text-green-600" : "text-blue-600"}`} />
+                            <div className="p-2 rounded-full bg-green-100">
+                              {record.check_in && !record.check_out ? (
+                                <UserCheck className="h-4 w-4 text-green-600" />
+                              ) : record.check_out ? (
+                                <UserX className="h-4 w-4 text-blue-600" />
                               ) : (
-                                <UserX className={`h-4 w-4 ${entry.status === "check-in" ? "text-green-600" : "text-blue-600"}`} />
+                                <Clock className="h-4 w-4 text-yellow-600" />
                               )}
                             </div>
                             <div>
-                              <p className="font-medium">{entry.name}</p>
-                              <p className="text-xs text-muted-foreground">{entry.id}</p>
+                              <p className="font-medium">{student?.full_name || 'Unknown'}</p>
+                              <p className="text-xs text-muted-foreground">{student?.email || 'N/A'}</p>
                             </div>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm">{entry.time}</p>
-                            {entry.date && <p className="text-xs text-muted-foreground">{entry.date}</p>}
+                            {record.check_in && (
+                              <p className="text-sm">
+                                In: {new Date(record.check_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </p>
+                            )}
+                            {record.check_out && (
+                              <p className="text-sm">
+                                Out: {new Date(record.check_out).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">{new Date(record.date).toLocaleDateString()}</p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                  <CardFooter>
-                    <Button variant="outline" className="w-full hover-scale">
-                      View All Records
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </TabsContent>
-              
-              <TabsContent value="alerts" className="space-y-4">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Alerts & Notifications</CardTitle>
-                    <CardDescription>Issues requiring your attention</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-3">
-                      {securityAlerts.map((alert, i) => (
-                        <div key={i} className={`flex items-center justify-between p-4 rounded-md border animate-fade-in ${
-                          alert.severity === "high" ? "bg-red-50 border-red-200" :
-                          alert.severity === "medium" ? "bg-yellow-50 border-yellow-200" :
-                          "bg-blue-50 border-blue-200"
-                        }`}>
-                          <div className="flex items-center space-x-3">
-                            <div className={`p-2 rounded-full ${
-                              alert.severity === "high" ? "bg-red-100" :
-                              alert.severity === "medium" ? "bg-yellow-100" :
-                              "bg-blue-100"
-                            }`}>
-                              <AlertCircle className={`h-4 w-4 ${
-                                alert.severity === "high" ? "text-red-600" :
-                                alert.severity === "medium" ? "text-yellow-600" :
-                                "text-blue-600"
-                              }`} />
-                            </div>
-                            <div>
-                              <p className="font-medium">{alert.name}</p>
-                              <p className="text-sm">{alert.message}</p>
-                              <p className="text-xs text-muted-foreground mt-1">{alert.id}</p>
-                            </div>
-                          </div>
-                          <div className="flex space-x-2">
-                            <Button size="sm" variant="ghost" className="hover-scale">Ignore</Button>
-                            <Button size="sm" className="hover-scale">Resolve</Button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="bookings" className="space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center space-x-2">
-              <h3 className="text-xl font-medium">Bookings Management</h3>
-            </div>
-            <Button size="sm" onClick={() => setRefreshTrigger(prev => prev + 1)}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-          </div>
-          
-          <Card>
-            <CardContent className="p-4">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex space-x-2">
-                    <Button size="sm" variant="outline">
-                      <Filter className="h-4 w-4 mr-2" />
-                      Filter
-                    </Button>
-                    <Input 
-                      placeholder="Search bookings..." 
-                      className="w-64"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
-                  <Button size="sm">
-                    <Plus className="h-4 w-4 mr-2" />
-                    New Booking
-                  </Button>
+                      );
+                    })
+                  )}
                 </div>
-                
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Booking ID</TableHead>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Room</TableHead>
-                      <TableHead>From</TableHead>
-                      <TableHead>To</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-8">
-                        No booking data available yet.
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+              <CardFooter>
+                <Button variant="outline" className="w-full hover-scale">
+                  View All Records
+                </Button>
+              </CardFooter>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
       
@@ -1266,6 +1288,7 @@ export function AdminDashboard() {
               >
                 <option value="student">Student</option>
                 <option value="admin">Admin</option>
+                <option value="security">Security</option>
                 <option value="mess">Mess Staff</option>
               </select>
             </div>

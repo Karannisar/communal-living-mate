@@ -6,7 +6,7 @@ const SecurityPage = () => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Security features have been moved to the Admin dashboard
+    // Security features have been integrated into the Admin dashboard
     navigate('/admin');
   }, [navigate]);
   

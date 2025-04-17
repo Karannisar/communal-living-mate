@@ -219,7 +219,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name?: string | null
-          id: string
+          id?: string
           role: string
           updated_at?: string
         }
