@@ -1,9 +1,18 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Separator } from "@/components/ui/separator";
+import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
-  Users, Home, CalendarCheck, AlertCircle, 
-  BedDouble, BarChart2, PieChart, TrendingUp 
+  Users, Home, CalendarCheck, AlertCircle, BedDouble, 
+  BarChart2, PieChart, TrendingUp, UserCheck, UserX, 
+  Clock, Search, QrCode, Plus, Pencil, Trash2, Filter,
+  RefreshCw
 } from "lucide-react";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { 
@@ -11,8 +20,8 @@ import {
   Legend, ResponsiveContainer, PieChart as RechartsPieChart, 
   Pie, Cell, LineChart, Line 
 } from "recharts";
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 // Sample data for charts
 const occupancyData = [
@@ -47,41 +56,74 @@ export function AdminDashboard() {
   const [students, setStudents] = useState({ total: 0, newThisMonth: 0 });
   const [complaints, setComplaints] = useState({ open: 0, resolved: 0 });
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState("analytics");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [scanMode, setScanMode] = useState<"checkin" | "checkout">("checkin");
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [roomsList, setRoomsList] = useState<any[]>([]);
+  const [complaintsData, setComplaintsData] = useState<any[]>([]);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isEditUserDialogOpen, setIsEditUserDialogOpen] = useState(false);
+  const [selectedRoom, setSelectedRoom] = useState<any>(null);
+  const [isEditRoomDialogOpen, setIsEditRoomDialogOpen] = useState(false);
+  const { toast } = useToast();
+  
+  // Mock recent entries data
+  const recentEntries = [
+    { id: "SID19254", name: "Emma Wilson", time: "08:45 AM", status: "check-in" },
+    { id: "SID18742", name: "Michael Brown", time: "08:30 AM", status: "check-in" },
+    { id: "SID19861", name: "Sophia Lee", time: "07:55 AM", status: "check-in" },
+    { id: "SID17503", name: "Daniel Kim", time: "11:20 PM", status: "check-out", date: "Yesterday" },
+    { id: "SID18965", name: "Olivia Singh", time: "10:45 PM", status: "check-out", date: "Yesterday" }
+  ];
+  
+  // Mock alerts
+  const securityAlerts = [
+    { id: "SID17423", name: "Noah Johnson", message: "No entry record for 2 days", severity: "high" },
+    { id: "SID18562", name: "Ava Martinez", message: "Multiple entries without checkout", severity: "medium" },
+    { id: "SID19123", name: "James Wilson", message: "Late night entry (2:00 AM)", severity: "low" }
+  ];
 
+  // Form states for editing
+  const [editUserForm, setEditUserForm] = useState({
+    full_name: "",
+    email: "",
+    role: "student"
+  });
+
+  const [editRoomForm, setEditRoomForm] = useState({
+    room_number: "",
+    floor: "",
+    capacity: 2,
+    price_per_month: 0,
+    is_available: true,
+    amenities: []
+  });
+
+  // Fetch all data
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
+        setLoading(true);
         // Fetch rooms data
         const { data: roomsData, error: roomsError } = await supabase
           .from('rooms')
-          .select('is_available');
+          .select('*');
         
         if (roomsError) throw roomsError;
         
         // Fetch students count
-        const { count: studentsCount, error: studentsError } = await supabase
+        const { data: usersData, error: usersError } = await supabase
           .from('users')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'student');
+          .select('*');
         
-        if (studentsError) throw studentsError;
-        
-        // Fetch new students this month
-        const today = new Date();
-        const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-        
-        const { count: newStudents, error: newStudentsError } = await supabase
-          .from('users')
-          .select('*', { count: 'exact', head: true })
-          .eq('role', 'student')
-          .gte('created_at', firstDayOfMonth.toISOString());
-        
-        if (newStudentsError) throw newStudentsError;
+        if (usersError) throw usersError;
         
         // Fetch complaints data
         const { data: complaintsData, error: complaintsError } = await supabase
           .from('complaints')
-          .select('status');
+          .select('*');
         
         if (complaintsError) throw complaintsError;
         
@@ -94,12 +136,24 @@ export function AdminDashboard() {
             total: totalRooms,
             occupied: occupiedRooms
           });
+          setRoomsList(roomsData);
         }
         
-        setStudents({
-          total: studentsCount || 0,
-          newThisMonth: newStudents || 0
-        });
+        if (usersData) {
+          const studentsData = usersData.filter(user => user.role === 'student');
+          const today = new Date();
+          const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+          const newStudents = studentsData.filter(student => {
+            const createdDate = new Date(student.created_at);
+            return createdDate >= firstDayOfMonth;
+          });
+          
+          setStudents({
+            total: studentsData.length,
+            newThisMonth: newStudents.length
+          });
+          setUsersList(usersData);
+        }
         
         if (complaintsData) {
           const openComplaints = complaintsData.filter(
@@ -114,16 +168,257 @@ export function AdminDashboard() {
             open: openComplaints,
             resolved: resolvedComplaints
           });
+          setComplaintsData(complaintsData);
         }
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load dashboard data",
+          variant: "destructive"
+        });
       } finally {
         setLoading(false);
       }
     };
     
     fetchDashboardData();
-  }, []);
+  }, [refreshTrigger, toast]);
+
+  // CRUD Functions for Users
+  const handleAddUser = async (userData: any) => {
+    try {
+      // This is just for in-app creation by admin, not auth
+      const { error } = await supabase
+        .from('users')
+        .insert([userData]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "User added successfully",
+      });
+      
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error adding user:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add user",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+      
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const editUser = (user: any) => {
+    setSelectedUser(user);
+    setEditUserForm({
+      full_name: user.full_name || "",
+      email: user.email || "",
+      role: user.role || "student"
+    });
+    setIsEditUserDialogOpen(true);
+  };
+
+  const handleUpdateUser = async () => {
+    try {
+      if (!selectedUser) return;
+      
+      const { error } = await supabase
+        .from('users')
+        .update({
+          full_name: editUserForm.full_name,
+          email: editUserForm.email,
+          role: editUserForm.role
+        })
+        .eq('id', selectedUser.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "User updated successfully",
+      });
+      
+      setIsEditUserDialogOpen(false);
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error updating user:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update user",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // CRUD Functions for Rooms
+  const handleAddRoom = async (roomData: any) => {
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .insert([roomData]);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Room added successfully",
+      });
+      
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error adding room:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add room",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleDeleteRoom = async (roomId: string) => {
+    try {
+      const { error } = await supabase
+        .from('rooms')
+        .delete()
+        .eq('id', roomId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Room deleted successfully",
+      });
+      
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error deleting room:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete room",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const editRoom = (room: any) => {
+    setSelectedRoom(room);
+    setEditRoomForm({
+      room_number: room.room_number || "",
+      floor: room.floor || "",
+      capacity: room.capacity || 2,
+      price_per_month: room.price_per_month || 0,
+      is_available: room.is_available !== false,
+      amenities: room.amenities || []
+    });
+    setIsEditRoomDialogOpen(true);
+  };
+
+  const handleUpdateRoom = async () => {
+    try {
+      if (!selectedRoom) return;
+      
+      const { error } = await supabase
+        .from('rooms')
+        .update({
+          room_number: editRoomForm.room_number,
+          floor: editRoomForm.floor,
+          capacity: editRoomForm.capacity,
+          price_per_month: editRoomForm.price_per_month,
+          is_available: editRoomForm.is_available,
+          amenities: editRoomForm.amenities
+        })
+        .eq('id', selectedRoom.id);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Room updated successfully",
+      });
+      
+      setIsEditRoomDialogOpen(false);
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error updating room:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update room",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle complaint status update
+  const updateComplaintStatus = async (complaintId: string, status: string) => {
+    try {
+      const { error } = await supabase
+        .from('complaints')
+        .update({ status })
+        .eq('id', complaintId);
+        
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: `Complaint marked as ${status}`,
+      });
+      
+      // Refresh data
+      setRefreshTrigger(prev => prev + 1);
+    } catch (error: any) {
+      console.error("Error updating complaint:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update complaint",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Filtered data based on search
+  const filteredUsers = usersList.filter(user => 
+    user.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    user.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredRooms = roomsList.filter(room => 
+    room.room_number?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    room.floor?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <div className="space-y-6">
@@ -183,11 +478,14 @@ export function AdminDashboard() {
         </Card>
       </div>
       
-      <Tabs defaultValue="analytics" className="space-y-4">
-        <TabsList className="grid grid-cols-3 w-[400px]">
+      <Tabs defaultValue="analytics" value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="grid grid-cols-6 md:w-[600px]">
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="rooms">Room Status</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+          <TabsTrigger value="rooms">Rooms</TabsTrigger>
           <TabsTrigger value="complaints">Complaints</TabsTrigger>
+          <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsTrigger value="bookings">Bookings</TabsTrigger>
         </TabsList>
         
         <TabsContent value="analytics" className="space-y-6">
@@ -312,67 +610,738 @@ export function AdminDashboard() {
           </div>
         </TabsContent>
         
-        <TabsContent value="rooms" className="space-y-4">
-          <h3 className="text-xl font-medium">Room Allocation Status</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[1, 2, 3].map((_, i) => (
-              <Card key={i} className="hover-scale">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-md">Floor {i + 1}</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-4 gap-2">
-                  {Array.from({length: 12}).map((_, roomIndex) => {
-                    const isOccupied = Math.random() > 0.3;
-                    return (
-                      <div 
-                        key={roomIndex} 
-                        className={`flex items-center justify-center h-12 w-12 rounded-md animate-fade-in ${
-                          isOccupied ? "bg-primary/80 text-primary-foreground" : "bg-muted text-muted-foreground"
-                        }`}
+        <TabsContent value="users" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xl font-medium">Users Management</h3>
+              <Badge>{usersList.length} Total</Badge>
+            </div>
+            <div className="flex space-x-2">
+              <Button size="sm" onClick={() => setRefreshTrigger(prev => prev + 1)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New User</DialogTitle>
+                    <DialogDescription>Create a new user account.</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                      <label htmlFor="fullName">Full Name</label>
+                      <Input 
+                        id="fullName" 
+                        value={editUserForm.full_name} 
+                        onChange={(e) => setEditUserForm({...editUserForm, full_name: e.target.value})} 
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="email">Email</label>
+                      <Input 
+                        id="email" 
+                        type="email"
+                        value={editUserForm.email} 
+                        onChange={(e) => setEditUserForm({...editUserForm, email: e.target.value})} 
+                      />
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="role">Role</label>
+                      <select 
+                        id="role"
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                        value={editUserForm.role}
+                        onChange={(e) => setEditUserForm({...editUserForm, role: e.target.value})}
                       >
-                        {isOccupied && <BedDouble className="h-6 w-6" />}
+                        <option value="student">Student</option>
+                        <option value="admin">Admin</option>
+                        <option value="mess">Mess Staff</option>
+                      </select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={() => handleAddUser(editUserForm)}>Add User</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+          
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search users by name or email..."
+              className="pl-9 mb-4"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        No users found. Try a different search.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <TableRow key={user.id} className="hover-scale-sm">
+                        <TableCell className="font-medium">{user.full_name || 'N/A'}</TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge 
+                            className={`${
+                              user.role === 'admin' ? 'bg-admin text-admin-foreground' :
+                              user.role === 'student' ? 'bg-student text-student-foreground' :
+                              'bg-mess text-mess-foreground'
+                            }`}
+                          >
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button size="icon" variant="ghost" onClick={() => editUser(user)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDeleteUser(user.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="rooms" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xl font-medium">Rooms Management</h3>
+              <Badge>{roomsList.length} Total</Badge>
+            </div>
+            <div className="flex space-x-2">
+              <Button size="sm" onClick={() => setRefreshTrigger(prev => prev + 1)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Room
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Room</DialogTitle>
+                    <DialogDescription>Create a new room in the dormitory.</DialogDescription>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label htmlFor="roomNumber">Room Number</label>
+                        <Input 
+                          id="roomNumber" 
+                          value={editRoomForm.room_number} 
+                          onChange={(e) => setEditRoomForm({...editRoomForm, room_number: e.target.value})} 
+                        />
                       </div>
-                    );
-                  })}
+                      <div>
+                        <label htmlFor="floor">Floor</label>
+                        <Input 
+                          id="floor" 
+                          value={editRoomForm.floor} 
+                          onChange={(e) => setEditRoomForm({...editRoomForm, floor: e.target.value})} 
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label htmlFor="capacity">Capacity</label>
+                        <Input 
+                          id="capacity"
+                          type="number"
+                          value={editRoomForm.capacity} 
+                          onChange={(e) => setEditRoomForm({...editRoomForm, capacity: parseInt(e.target.value) || 1})} 
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="price">Price per Month</label>
+                        <Input 
+                          id="price"
+                          type="number"
+                          value={editRoomForm.price_per_month} 
+                          onChange={(e) => setEditRoomForm({...editRoomForm, price_per_month: parseFloat(e.target.value) || 0})} 
+                        />
+                      </div>
+                    </div>
+                    <div className="grid gap-2">
+                      <label htmlFor="availability">Availability</label>
+                      <select 
+                        id="availability"
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                        value={editRoomForm.is_available ? "true" : "false"}
+                        onChange={(e) => setEditRoomForm({...editRoomForm, is_available: e.target.value === "true"})}
+                      >
+                        <option value="true">Available</option>
+                        <option value="false">Occupied</option>
+                      </select>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button onClick={() => handleAddRoom(editRoomForm)}>Add Room</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+          
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search rooms by number or floor..."
+              className="pl-9 mb-4"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Room Number</TableHead>
+                    <TableHead>Floor</TableHead>
+                    <TableHead>Capacity</TableHead>
+                    <TableHead>Price/Month</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRooms.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        No rooms found. Try a different search.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    filteredRooms.map((room) => (
+                      <TableRow key={room.id} className="hover-scale-sm">
+                        <TableCell className="font-medium">{room.room_number}</TableCell>
+                        <TableCell>{room.floor}</TableCell>
+                        <TableCell>{room.capacity}</TableCell>
+                        <TableCell>₹{room.price_per_month}</TableCell>
+                        <TableCell>
+                          <Badge className={room.is_available ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                            {room.is_available ? "Available" : "Occupied"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right space-x-2">
+                          <Button size="icon" variant="ghost" onClick={() => editRoom(room)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => handleDeleteRoom(room.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="complaints" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xl font-medium">Complaints Management</h3>
+              <Badge>{complaintsData.length} Total</Badge>
+            </div>
+            <Button size="sm" onClick={() => setRefreshTrigger(prev => prev + 1)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+          
+          <Card>
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                {complaintsData.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">No complaints found.</p>
+                  </div>
+                ) : (
+                  complaintsData.map((complaint) => (
+                    <div key={complaint.id} className="p-4 border rounded-lg hover-scale-sm">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h4 className="font-semibold">{complaint.title}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Room: {complaint.room_id || 'Not specified'} | 
+                            Reported: {new Date(complaint.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge 
+                          className={
+                            complaint.status === 'open' ? 'bg-destructive text-destructive-foreground' :
+                            complaint.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-green-100 text-green-800'
+                          }
+                        >
+                          {complaint.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-2">{complaint.description}</p>
+                      <div className="mt-4 flex justify-end space-x-2">
+                        {complaint.status === 'open' && (
+                          <Button size="sm" variant="outline" onClick={() => updateComplaintStatus(complaint.id, 'in_progress')}>
+                            Mark In Progress
+                          </Button>
+                        )}
+                        {(complaint.status === 'open' || complaint.status === 'in_progress') && (
+                          <Button size="sm" onClick={() => updateComplaintStatus(complaint.id, 'resolved')}>
+                            Mark Resolved
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="security" className="space-y-4">
+          {/* Security Dashboard */}
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xl font-medium">Security Dashboard</h3>
+              <Button size="sm" onClick={() => setRefreshTrigger(prev => prev + 1)}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+            
+            {/* Quick Stats */}
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-4">
+              <Card className="hover-scale">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Today's Check-ins</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">187</div>
+                  <div className="flex items-center mt-1">
+                    <UserCheck className="h-4 w-4 text-green-600 mr-1" />
+                    <span className="text-xs text-green-600">98% of residents</span>
+                  </div>
                 </CardContent>
               </Card>
-            ))}
+              
+              <Card className="hover-scale">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Today's Check-outs</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">59</div>
+                  <div className="flex items-center mt-1">
+                    <UserX className="h-4 w-4 text-muted-foreground mr-1" />
+                    <span className="text-xs text-muted-foreground">31% of residents</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover-scale">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Current Outside</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">128</div>
+                  <div className="flex items-center mt-1">
+                    <Clock className="h-4 w-4 text-muted-foreground mr-1" />
+                    <span className="text-xs text-muted-foreground">Since 6:00 AM</span>
+                  </div>
+                </CardContent>
+              </Card>
+              
+              <Card className="hover-scale">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-medium">Alerts</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">3</div>
+                  <div className="flex items-center mt-1">
+                    <AlertCircle className="h-4 w-4 text-destructive mr-1" />
+                    <span className="text-xs text-destructive">Requires attention</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            
+            {/* Scanner */}
+            <Card className="hover-scale">
+              <CardHeader>
+                <CardTitle>Student Attendance Scanner</CardTitle>
+                <CardDescription>Scan student ID for check-in/out</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Search student by ID or name..."
+                        className="pl-9 hover-lift"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                      />
+                    </div>
+                  </div>
+                  <Button className="flex items-center gap-2 hover-scale">
+                    <QrCode className="h-4 w-4" />
+                    Scan QR Code
+                  </Button>
+                </div>
+                
+                <div className="flex justify-center space-x-4">
+                  <Button
+                    variant={scanMode === "checkin" ? "default" : "outline"}
+                    onClick={() => setScanMode("checkin")}
+                    className="flex-1 hover-scale"
+                  >
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Check In
+                  </Button>
+                  <Button
+                    variant={scanMode === "checkout" ? "default" : "outline"}
+                    onClick={() => setScanMode("checkout")}
+                    className="flex-1 hover-scale"
+                  >
+                    <UserX className="h-4 w-4 mr-2" />
+                    Check Out
+                  </Button>
+                </div>
+                
+                <div className="flex justify-center border-2 border-dashed rounded-lg p-6">
+                  <div className="text-center">
+                    <QrCode className="h-24 w-24 mx-auto text-muted-foreground animate-pulse" />
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      Ready to scan student ID. Please align the QR code within the frame.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-between">
+                <div>
+                  <span className="text-sm text-muted-foreground">Scanner Status:</span>
+                  <Badge className="ml-2 bg-green-100 text-green-800">Ready</Badge>
+                </div>
+                <Button variant="secondary" size="sm" className="hover-scale">
+                  Manual Entry
+                </Button>
+              </CardFooter>
+            </Card>
+            
+            <Tabs defaultValue="recent" className="space-y-4">
+              <TabsList className="grid grid-cols-2 w-[400px]">
+                <TabsTrigger value="recent" className="flex items-center gap-2">
+                  <CalendarCheck className="h-4 w-4" />
+                  Recent Entries
+                </TabsTrigger>
+                <TabsTrigger value="alerts" className="flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Alerts
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="recent" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Recent Activity</CardTitle>
+                    <CardDescription>Latest student check-ins and check-outs</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {recentEntries.map((entry, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 rounded-md border hover:bg-accent hover-scale animate-fade-in">
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-2 rounded-full ${
+                              entry.status === "check-in" ? "bg-green-100" : "bg-blue-100"
+                            }`}>
+                              {entry.status === "check-in" ? (
+                                <UserCheck className={`h-4 w-4 ${entry.status === "check-in" ? "text-green-600" : "text-blue-600"}`} />
+                              ) : (
+                                <UserX className={`h-4 w-4 ${entry.status === "check-in" ? "text-green-600" : "text-blue-600"}`} />
+                              )}
+                            </div>
+                            <div>
+                              <p className="font-medium">{entry.name}</p>
+                              <p className="text-xs text-muted-foreground">{entry.id}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm">{entry.time}</p>
+                            {entry.date && <p className="text-xs text-muted-foreground">{entry.date}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                  <CardFooter>
+                    <Button variant="outline" className="w-full hover-scale">
+                      View All Records
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </TabsContent>
+              
+              <TabsContent value="alerts" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Alerts & Notifications</CardTitle>
+                    <CardDescription>Issues requiring your attention</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {securityAlerts.map((alert, i) => (
+                        <div key={i} className={`flex items-center justify-between p-4 rounded-md border animate-fade-in ${
+                          alert.severity === "high" ? "bg-red-50 border-red-200" :
+                          alert.severity === "medium" ? "bg-yellow-50 border-yellow-200" :
+                          "bg-blue-50 border-blue-200"
+                        }`}>
+                          <div className="flex items-center space-x-3">
+                            <div className={`p-2 rounded-full ${
+                              alert.severity === "high" ? "bg-red-100" :
+                              alert.severity === "medium" ? "bg-yellow-100" :
+                              "bg-blue-100"
+                            }`}>
+                              <AlertCircle className={`h-4 w-4 ${
+                                alert.severity === "high" ? "text-red-600" :
+                                alert.severity === "medium" ? "text-yellow-600" :
+                                "text-blue-600"
+                              }`} />
+                            </div>
+                            <div>
+                              <p className="font-medium">{alert.name}</p>
+                              <p className="text-sm">{alert.message}</p>
+                              <p className="text-xs text-muted-foreground mt-1">{alert.id}</p>
+                            </div>
+                          </div>
+                          <div className="flex space-x-2">
+                            <Button size="sm" variant="ghost" className="hover-scale">Ignore</Button>
+                            <Button size="sm" className="hover-scale">Resolve</Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </div>
         </TabsContent>
         
-        <TabsContent value="complaints">
+        <TabsContent value="bookings" className="space-y-4">
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex items-center space-x-2">
+              <h3 className="text-xl font-medium">Bookings Management</h3>
+            </div>
+            <Button size="sm" onClick={() => setRefreshTrigger(prev => prev + 1)}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+          </div>
+          
           <Card>
-            <CardHeader>
-              <CardTitle>Recent Complaints</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {[
-                  "Water leakage in bathroom",
-                  "Door lock is broken",
-                  "Light fixture not working",
-                  "AC not cooling properly",
-                  "Window won't close properly"
-                ].map((complaint, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 border rounded hover:bg-accent hover-scale">
-                    <div>
-                      <p className="font-medium">{complaint}</p>
-                      <p className="text-sm text-muted-foreground">Room {Math.floor(Math.random() * 500) + 100}</p>
-                    </div>
-                    <div className={`px-2 py-1 rounded-full text-xs ${
-                      i < 2 ? "bg-destructive/20 text-destructive" : 
-                      i < 4 ? "bg-yellow-100 text-yellow-800" : 
-                      "bg-green-100 text-green-800"
-                    }`}>
-                      {i < 2 ? "Urgent" : i < 4 ? "In Progress" : "Resolved"}
-                    </div>
+            <CardContent className="p-4">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex space-x-2">
+                    <Button size="sm" variant="outline">
+                      <Filter className="h-4 w-4 mr-2" />
+                      Filter
+                    </Button>
+                    <Input 
+                      placeholder="Search bookings..." 
+                      className="w-64"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
-                ))}
+                  <Button size="sm">
+                    <Plus className="h-4 w-4 mr-2" />
+                    New Booking
+                  </Button>
+                </div>
+                
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Booking ID</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Room</TableHead>
+                      <TableHead>From</TableHead>
+                      <TableHead>To</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        No booking data available yet.
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
+      
+      {/* Edit User Dialog */}
+      <Dialog open={isEditUserDialogOpen} onOpenChange={setIsEditUserDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+            <DialogDescription>Update user information.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <label htmlFor="edit-fullName">Full Name</label>
+              <Input 
+                id="edit-fullName" 
+                value={editUserForm.full_name} 
+                onChange={(e) => setEditUserForm({...editUserForm, full_name: e.target.value})} 
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="edit-email">Email</label>
+              <Input 
+                id="edit-email" 
+                type="email"
+                value={editUserForm.email} 
+                onChange={(e) => setEditUserForm({...editUserForm, email: e.target.value})} 
+              />
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="edit-role">Role</label>
+              <select 
+                id="edit-role"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                value={editUserForm.role}
+                onChange={(e) => setEditUserForm({...editUserForm, role: e.target.value})}
+              >
+                <option value="student">Student</option>
+                <option value="admin">Admin</option>
+                <option value="mess">Mess Staff</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditUserDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateUser}>Update User</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Edit Room Dialog */}
+      <Dialog open={isEditRoomDialogOpen} onOpenChange={setIsEditRoomDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Room</DialogTitle>
+            <DialogDescription>Update room information.</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="edit-roomNumber">Room Number</label>
+                <Input 
+                  id="edit-roomNumber" 
+                  value={editRoomForm.room_number} 
+                  onChange={(e) => setEditRoomForm({...editRoomForm, room_number: e.target.value})} 
+                />
+              </div>
+              <div>
+                <label htmlFor="edit-floor">Floor</label>
+                <Input 
+                  id="edit-floor" 
+                  value={editRoomForm.floor} 
+                  onChange={(e) => setEditRoomForm({...editRoomForm, floor: e.target.value})} 
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label htmlFor="edit-capacity">Capacity</label>
+                <Input 
+                  id="edit-capacity"
+                  type="number"
+                  value={editRoomForm.capacity} 
+                  onChange={(e) => setEditRoomForm({...editRoomForm, capacity: parseInt(e.target.value) || 1})} 
+                />
+              </div>
+              <div>
+                <label htmlFor="edit-price">Price per Month</label>
+                <Input 
+                  id="edit-price"
+                  type="number"
+                  value={editRoomForm.price_per_month} 
+                  onChange={(e) => setEditRoomForm({...editRoomForm, price_per_month: parseFloat(e.target.value) || 0})} 
+                />
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <label htmlFor="edit-availability">Availability</label>
+              <select 
+                id="edit-availability"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors"
+                value={editRoomForm.is_available ? "true" : "false"}
+                onChange={(e) => setEditRoomForm({...editRoomForm, is_available: e.target.value === "true"})}
+              >
+                <option value="true">Available</option>
+                <option value="false">Occupied</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditRoomDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleUpdateRoom}>Update Room</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

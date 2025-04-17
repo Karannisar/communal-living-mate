@@ -242,6 +242,14 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      hash_password: {
+        Args: { password: string }
+        Returns: string
+      }
+      verify_password: {
+        Args: { email: string; password: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

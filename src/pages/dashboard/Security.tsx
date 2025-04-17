@@ -1,29 +1,16 @@
 
-import { useState, useEffect } from "react";
-import { SecurityDashboard } from "@/components/dashboard/SecurityDashboard";
-import { DashboardLayout } from "@/components/layout/DashboardLayout";
-import { LoadingScreen } from "@/components/ui/loading-screen";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
 const SecurityPage = () => {
-  const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
   
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1500);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    // Security features have been moved to the Admin dashboard
+    navigate('/admin');
+  }, [navigate]);
   
-  if (isLoading) {
-    return <LoadingScreen message="Loading Security Dashboard" theme="theme-security" />;
-  }
-  
-  return (
-    <DashboardLayout role="security" userName="Security User" theme="theme-security">
-      <SecurityDashboard />
-    </DashboardLayout>
-  );
+  return null;
 };
 
 export default SecurityPage;

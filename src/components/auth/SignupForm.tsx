@@ -48,8 +48,17 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
     try {
       setLoading(true);
       
-      // All new users are assigned 'student' role by default
-      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { full_name, role } } });
+      // Register user with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            full_name: values.fullName,
+          }
+        }
+      });
+      
       if (error) {
         toast({
           title: "Error",
@@ -59,7 +68,7 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
         return;
       }
       
-      // Manually create a record in the users table to ensure it's there
+      // Create a user record in the users table
       if (data.user) {
         const { error: insertError } = await supabase
           .from('users')
@@ -67,22 +76,22 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
             id: data.user.id,
             email: values.email,
             full_name: values.fullName,
-            role: 'student'
+            role: 'student' // Default role for all new users
           });
           
         if (insertError) {
           console.error("Error inserting user data:", insertError);
-          // Don't show this error to user if the trigger already added the user
+          // Don't show error to user, as the trigger might handle this
         }
       }
       
       toast({
         title: "Success",
-        description: "Your account has been created. Please check your email for verification.",
+        description: "Your account has been created. Please sign in.",
       });
       
       if (onSignup) onSignup();
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
       toast({
         title: "Error",

@@ -1,8 +1,10 @@
+
 import { useState, useEffect } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { LoadingScreen } from "@/components/ui/loading-screen";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -32,7 +34,6 @@ const Auth = () => {
     const email = session.user.email;
     
     if (email === "admin@dormmate.com") {
-      await ensureAdminUser(session);
       navigate('/admin');
       return;
     }
@@ -41,11 +42,11 @@ const Auth = () => {
       .from('users')
       .select('role')
       .eq('id', session.user.id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error("Error fetching user role:", error);
-      await createDefaultUser(session);
+      // Default to student role if there's an error
       navigate('/student');
       return;
     }
@@ -53,37 +54,20 @@ const Auth = () => {
     if (userData?.role) {
       navigate(`/${userData.role}`);
     } else {
-      await createDefaultUser(session);
+      // Handle new user with no role - create default student role
+      const { error: insertError } = await supabase
+        .from('users')
+        .insert({
+          id: session.user.id,
+          email: session.user.email,
+          role: 'student'
+        });
+
+      if (insertError) {
+        console.error("Error creating user record:", insertError);
+      }
+      
       navigate('/student');
-    }
-  };
-
-  const ensureAdminUser = async (session) => {
-    const { error: insertError } = await supabase
-      .from('users')
-      .upsert({
-        id: session.user.id,
-        email: 'admin@dormmate.com',
-        full_name: 'Admin User',
-        role: 'admin'
-      }, { onConflict: 'id' });
-
-    if (insertError) {
-      console.error("Error ensuring admin user:", insertError);
-    }
-  };
-
-  const createDefaultUser = async (session) => {
-    const { error: insertError } = await supabase
-      .from('users')
-      .insert({
-        id: session.user.id,
-        email: session.user.email,
-        role: 'student'
-      });
-
-    if (insertError) {
-      console.error("Error creating user record:", insertError);
     }
   };
 
@@ -99,7 +83,7 @@ const Auth = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <LoadingScreen message="Checking authentication..." />;
   }
 
   return (
