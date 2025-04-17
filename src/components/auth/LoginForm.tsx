@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -47,6 +46,7 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
   const handleAdminLogin = async () => {
     try {
       setLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email: "admin@dormmate.com",
         password: "admin123456",
