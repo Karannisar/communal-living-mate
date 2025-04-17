@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -16,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useNavigate } from "react-router-dom";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -32,6 +34,7 @@ interface LoginFormProps {
 export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -44,31 +47,11 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
   const handleAdminLogin = async () => {
     try {
       setLoading(true);
-      
-      // First verify the password using the custom function
-      const { data: verifyData, error: verifyError } = await supabase.rpc(
-        'verify_password',
-        { 
-          email: 'admin@dormmate.com',
-          password: 'admin123456'
-        }
-      );
-      
-      if (verifyError || !verifyData) {
-        toast({
-          title: "Error",
-          description: "Invalid admin credentials",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // If password is verified, proceed with sign in
       const { data, error } = await supabase.auth.signInWithPassword({
         email: "admin@dormmate.com",
         password: "admin123456",
       });
-      
+
       if (error) {
         toast({
           title: "Error",
@@ -77,13 +60,13 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
         });
         return;
       }
-      
+
       toast({
         title: "Success",
         description: "Admin login successful!",
       });
-      
-      await onLogin();
+
+      navigate('/admin');
     } catch (error) {
       console.error(error);
       toast({
@@ -100,7 +83,7 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
     try {
       setLoading(true);
       
-      // First verify the password
+      // First, verify the password using the custom function
       const { data: verifyData, error: verifyError } = await supabase.rpc(
         'verify_password',
         { 
@@ -131,29 +114,6 @@ export function LoginForm({ onLogin, onSignupClick }: LoginFormProps) {
           variant: "destructive",
         });
         return;
-      }
-      
-      // Ensure the user exists in the users table
-      const { error: userCheckError, data: userExists } = await supabase
-        .from('users')
-        .select('*')
-        .eq('email', values.email)
-        .maybeSingle();
-        
-      if (userCheckError || !userExists) {
-        // Create user in the users table if it doesn't exist
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: values.email,
-            password_hash: await supabase.rpc('hash_password', { password: values.password }),
-            role: 'student'
-          });
-          
-        if (insertError) {
-          console.error("Error ensuring user exists:", insertError);
-        }
       }
       
       toast({
