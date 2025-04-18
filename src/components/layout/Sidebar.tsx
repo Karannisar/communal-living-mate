@@ -7,15 +7,11 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Building2,
-  BedDouble,
-  ShieldAlert,
-  UtensilsCrossed,
   Home,
   Users,
-  BookOpen,
-  CalendarClock,
+  BedDouble,
+  Calendar,
   ClipboardList,
-  MessageSquare,
   Settings,
   Menu,
   X,
@@ -44,11 +40,13 @@ const NavItem = ({ icon: Icon, label, active, onClick }: NavItemProps) => (
 
 interface SidebarProps {
   role: string;
+  onNavigate?: (item: string) => void;
+  activeItem?: string;
 }
 
-export function Sidebar({ role }: SidebarProps) {
+export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const [activeItem, setActiveItem] = useState("dashboard");
+  const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   
   const getRoleIcon = () => {
     switch (role) {
@@ -56,46 +54,34 @@ export function Sidebar({ role }: SidebarProps) {
         return Building2;
       case "student":
         return BedDouble;
-      case "security":
-        return ShieldAlert;
-      case "mess":
-        return UtensilsCrossed;
       default:
         return Building2;
     }
   };
   
-  const getRoleNavItems = () => {
-    const commonItems = [
-      { id: "dashboard", label: "Dashboard", icon: Home },
-      { id: "settings", label: "Settings", icon: Settings },
-    ];
-    
-    const roleSpecificItems = {
-      admin: [
-        { id: "students", label: "Students", icon: Users },
-        { id: "rooms", label: "Rooms", icon: BedDouble },
-        { id: "attendance", label: "Attendance", icon: CalendarClock },
-        { id: "mess-menu", label: "Mess Menu", icon: ClipboardList },
-      ],
-      student: [
-        { id: "room", label: "My Room", icon: BedDouble },
-        { id: "mess-menu", label: "Mess Menu", icon: BookOpen },
-        { id: "complaints", label: "Complaints", icon: MessageSquare },
-      ],
-      security: [
-        { id: "check-in", label: "Check In/Out", icon: CalendarClock },
-        { id: "logs", label: "Attendance Logs", icon: ClipboardList },
-        { id: "students", label: "Students", icon: Users },
-      ],
-      mess: [
-        { id: "daily-menu", label: "Daily Menu", icon: BookOpen },
-        { id: "weekly-plan", label: "Weekly Plan", icon: CalendarClock },
-        { id: "inventory", label: "Inventory", icon: ClipboardList },
-      ],
-    };
-    
-    return [...commonItems, ...(roleSpecificItems[role as keyof typeof roleSpecificItems] || [])];
+  const adminNavItems = [
+    { id: "dashboard", label: "Dashboard", icon: Home },
+    { id: "students", label: "Students", icon: Users },
+    { id: "rooms", label: "Rooms", icon: BedDouble },
+    { id: "attendance", label: "Attendance", icon: Calendar },
+    { id: "mess-menu", label: "Mess Menu", icon: ClipboardList },
+    { id: "settings", label: "Settings", icon: Settings },
+  ];
+  
+  const studentNavItems = [
+    { id: "dashboard", label: "Dashboard", icon: Home },
+    { id: "my-room", label: "My Room", icon: BedDouble },
+    { id: "mess-menu", label: "Mess Menu", icon: ClipboardList },
+    { id: "settings", label: "Settings", icon: Settings },
+  ];
+  
+  const navItems = role === "admin" ? adminNavItems : studentNavItems;
+
+  const handleItemClick = (itemId: string) => {
+    setCurrentActiveItem(itemId);
+    if (onNavigate) {
+      onNavigate(itemId);
+    }
   };
 
   return (
@@ -128,13 +114,13 @@ export function Sidebar({ role }: SidebarProps) {
       <Separator />
       <ScrollArea className="h-[calc(100vh-4rem)]">
         <div className="space-y-1 p-2">
-          {getRoleNavItems().map((item) => (
+          {navItems.map((item) => (
             <NavItem
               key={item.id}
               icon={item.icon}
               label={collapsed ? "" : item.label}
-              active={activeItem === item.id}
-              onClick={() => setActiveItem(item.id)}
+              active={currentActiveItem === item.id}
+              onClick={() => handleItemClick(item.id)}
             />
           ))}
         </div>

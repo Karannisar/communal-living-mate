@@ -1,61 +1,100 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, BedDouble, CalendarClock, ClipboardList } from "lucide-react";
 import { StudentsManagement } from "./StudentsManagement";
 import { RoomsManagement } from "./RoomsManagement";
 import { RoomAssignments } from "./RoomAssignments";
 import { AttendanceMonitoring } from "./AttendanceMonitoring";
+import { MessMenuManagement } from "./MessMenuManagement";
 
 export function AdminDashboard() {
-  const [activeTab, setActiveTab] = useState("students");
+  const [activeSection, setActiveSection] = useState("dashboard");
+  
+  // Dashboard overview component
+  const DashboardOverview = () => (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">25</div>
+          <p className="text-xs text-muted-foreground">
+            +4 from last month
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Available Rooms</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">12</div>
+          <p className="text-xs text-muted-foreground">
+            75% occupancy rate
+          </p>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Current Check-ins</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">18</div>
+          <p className="text-xs text-muted-foreground">
+            72% of total students
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+  
+  const renderActiveSection = () => {
+    switch (activeSection) {
+      case "dashboard":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Admin Dashboard</CardTitle>
+              <CardDescription>
+                Welcome to the DormMate admin dashboard. Manage students, rooms, assignments, and more.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DashboardOverview />
+            </CardContent>
+          </Card>
+        );
+      case "students":
+        return <StudentsManagement />;
+      case "rooms":
+        return <RoomsManagement />;
+      case "attendance":
+        return <AttendanceMonitoring />;
+      case "mess-menu":
+        return <MessMenuManagement />;
+      case "settings":
+        return (
+          <Card>
+            <CardHeader>
+              <CardTitle>Settings</CardTitle>
+              <CardDescription>
+                Configure your application settings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p>Settings functionality coming soon.</p>
+            </CardContent>
+          </Card>
+        );
+      default:
+        return <StudentsManagement />;
+    }
+  };
   
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-2">
-        <h2 className="text-3xl font-bold tracking-tight">Admin Dashboard</h2>
-        <p className="text-muted-foreground">
-          Manage students, rooms, assignments, and monitor attendance.
-        </p>
-      </div>
-      
-      <Tabs defaultValue="students" value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="students" className="flex items-center gap-2">
-            <Users className="h-4 w-4" />
-            <span>Students</span>
-          </TabsTrigger>
-          <TabsTrigger value="rooms" className="flex items-center gap-2">
-            <BedDouble className="h-4 w-4" />
-            <span>Rooms</span>
-          </TabsTrigger>
-          <TabsTrigger value="assignments" className="flex items-center gap-2">
-            <ClipboardList className="h-4 w-4" />
-            <span>Assignments</span>
-          </TabsTrigger>
-          <TabsTrigger value="attendance" className="flex items-center gap-2">
-            <CalendarClock className="h-4 w-4" />
-            <span>Attendance</span>
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="students" className="space-y-4">
-          <StudentsManagement />
-        </TabsContent>
-        
-        <TabsContent value="rooms" className="space-y-4">
-          <RoomsManagement />
-        </TabsContent>
-        
-        <TabsContent value="assignments" className="space-y-4">
-          <RoomAssignments />
-        </TabsContent>
-        
-        <TabsContent value="attendance" className="space-y-4">
-          <AttendanceMonitoring />
-        </TabsContent>
-      </Tabs>
+      {renderActiveSection()}
     </div>
   );
 }

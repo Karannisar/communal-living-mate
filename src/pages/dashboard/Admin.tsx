@@ -39,17 +39,24 @@ const AdminPage = () => {
     fetchAdminData();
     
     // Set up real-time table changes to enable notifications
-    const realtime = supabase.channel('schema-db-changes')
+    const channel = supabase.channel('admin-notifications')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
+        table: 'attendance',
       }, (payload) => {
-        console.log('Change received!', payload);
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          // Show notification when a student checks in or out
+          const toast = window.document.createElement('div');
+          toast.textContent = `Student activity: ${payload.eventType === 'INSERT' ? 'New check-in' : 'Updated attendance'}`;
+          document.body.appendChild(toast);
+          setTimeout(() => document.body.removeChild(toast), 3000);
+        }
       })
       .subscribe();
       
     return () => {
-      supabase.removeChannel(realtime);
+      supabase.removeChannel(channel);
     };
   }, []);
   

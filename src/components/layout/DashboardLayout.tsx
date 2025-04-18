@@ -1,5 +1,5 @@
 
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 
@@ -11,6 +11,19 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children, role, userName = "", theme }: DashboardLayoutProps) {
+  const [activeItem, setActiveItem] = useState("dashboard");
+  
+  // Pass the active item to the specific component that's rendered
+  const childrenWithProps = React.Children.map(children, child => {
+    if (React.isValidElement(child)) {
+      return React.cloneElement(child as React.ReactElement<any>, { 
+        activeSection: activeItem,
+        setActiveSection: setActiveItem 
+      });
+    }
+    return child;
+  });
+  
   useEffect(() => {
     // Apply theme class to body
     document.body.classList.forEach(cls => {
@@ -25,12 +38,16 @@ export function DashboardLayout({ children, role, userName = "", theme }: Dashbo
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar role={role} />
+      <Sidebar 
+        role={role} 
+        activeItem={activeItem} 
+        onNavigate={(item) => setActiveItem(item)}
+      />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar userName={userName} role={role} />
         <main className="flex-1 overflow-auto p-6">
           <div className="container mx-auto animate-fade-in">
-            {children}
+            {childrenWithProps}
           </div>
         </main>
       </div>

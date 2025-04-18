@@ -1,178 +1,333 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { OpenRouterChatbot } from "@/components/ai/OpenRouterChatbot";
-import {
-  BedDouble,
-  CalendarClock,
-  MessageSquare,
-  Users,
-  User,
-  Coffee,
-  UtensilsCrossed
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { BedDouble, UtensilsCrossed, Calendar, LogIn, LogOut, Users } from "lucide-react";
 
 export function StudentDashboard() {
-  // Sample data
-  const roomDetails = {
-    roomNumber: "B-204",
-    building: "Block B",
-    floor: "2nd Floor",
-    roommates: [
-      { name: "Alex Johnson", id: "SID18745" },
-      { name: "Ray Chen", id: "SID19021" }
-    ]
+  const [student, setStudent] = useState<any>(null);
+  const [booking, setBooking] = useState<any>(null);
+  const [room, setRoom] = useState<any>(null);
+  const [roommates, setRoommates] = useState<any[]>([]);
+  const [isCheckedIn, setIsCheckedIn] = useState(false);
+  const [todayMenu, setTodayMenu] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const fetchStudentData = async () => {
+      try {
+        setIsLoading(true);
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (user) {
+          // Get student data
+          const { data: studentData, error: studentError } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+            
+          if (studentError) throw studentError;
+          setStudent(studentData);
+          
+          // Get booking/room data
+          const { data: bookingData, error: bookingError } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              rooms:room_id (*)
+            `)
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .maybeSingle();
+            
+          if (bookingError) throw bookingError;
+          setBooking(bookingData);
+          
+          if (bookingData?.rooms) {
+            setRoom(bookingData.rooms);
+            
+            // Get roommates data
+            const { data: roommatesData, error: roommatesError } = await supabase
+              .from('bookings')
+              .select(`
+                users:user_id (id, full_name, email)
+              `)
+              .eq('room_id', bookingData.room_id)
+              .eq('status', 'active')
+              .neq('user_id', user.id);
+              
+            if (roommatesError) throw roommatesError;
+            setRoommates(roommatesData?.map((item: any) => item.users) || []);
+          }
+          
+          // Check attendance status for today
+          const today = new Date().toISOString().split('T')[0];
+          const { data: attendanceData, error: attendanceError } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .maybeSingle();
+            
+          if (attendanceError) throw attendanceError;
+          setIsCheckedIn(!!attendanceData?.check_in && !attendanceData?.check_out);
+          
+          // Get today's menu
+          const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+          const dayOfWeek = days[new Date().getDay()];
+          
+          const { data: menuData, error: menuError } = await supabase
+            .from('mess_menu')
+            .select('*')
+            .eq('day_of_week', dayOfWeek);
+            
+          if (menuError) throw menuError;
+          setTodayMenu(menuData || []);
+        }
+      } catch (error) {
+        console.error("Error fetching student data:", error);
+        toast.error("Failed to load student data");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchStudentData();
+    
+    // Setup realtime updates for attendance
+    const channel = supabase.channel('student-updates')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'bookings',
+        filter: `user_id=eq.${(supabase.auth.getUser()).then(({ data }) => data.user?.id)}`
+      }, () => {
+        fetchStudentData();
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+  
+  const handleCheckIn = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date().toISOString();
+      
+      // Check if there's an existing record for today
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('user_id', student.id)
+        .eq('date', today)
+        .maybeSingle();
+        
+      if (fetchError) throw fetchError;
+      
+      if (existingRecord) {
+        // Update existing record
+        const { error } = await supabase
+          .from('attendance')
+          .update({ check_in: now })
+          .eq('id', existingRecord.id);
+          
+        if (error) throw error;
+      } else {
+        // Create new record
+        const { error } = await supabase
+          .from('attendance')
+          .insert({
+            user_id: student.id,
+            date: today,
+            check_in: now
+          });
+          
+        if (error) throw error;
+      }
+      
+      setIsCheckedIn(true);
+      toast.success("You have successfully checked in!");
+    } catch (error: any) {
+      console.error("Check-in error:", error);
+      toast.error("Failed to check in: " + error.message);
+    }
   };
-
-  // Today's mess menu
-  const todayMenu = {
-    breakfast: ["Bread and Butter", "Eggs", "Cereal", "Milk", "Fruits"],
-    lunch: ["Rice", "Dal", "Vegetable Curry", "Chapati", "Salad"],
-    dinner: ["Noodles", "Soup", "Grilled Vegetables", "Ice Cream"]
+  
+  const handleCheckOut = async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const now = new Date().toISOString();
+      
+      // Get today's record
+      const { data: existingRecord, error: fetchError } = await supabase
+        .from('attendance')
+        .select('*')
+        .eq('user_id', student.id)
+        .eq('date', today)
+        .maybeSingle();
+        
+      if (fetchError) throw fetchError;
+      
+      if (!existingRecord) {
+        toast.error("No check-in record found for today");
+        return;
+      }
+      
+      // Update with check-out time
+      const { error } = await supabase
+        .from('attendance')
+        .update({ check_out: now })
+        .eq('id', existingRecord.id);
+        
+      if (error) throw error;
+      
+      setIsCheckedIn(false);
+      toast.success("You have successfully checked out!");
+    } catch (error: any) {
+      console.error("Check-out error:", error);
+      toast.error("Failed to check out: " + error.message);
+    }
   };
+  
+  if (isLoading) {
+    return <div className="flex justify-center items-center min-h-[300px]">Loading student data...</div>;
+  }
 
   return (
     <div className="space-y-6">
-      <OpenRouterChatbot />
-      <h2 className="text-3xl font-bold tracking-tight">Welcome, Student</h2>
-      
-      <div className="grid gap-4 md:grid-cols-2">
-        {/* Room Information Card */}
-        <Card className="hover-scale">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <div>
-              <CardTitle>Your Room</CardTitle>
-              <CardDescription>Current accommodation details</CardDescription>
-            </div>
-            <BedDouble className="h-6 w-6 text-student-dark" />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">My Room</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Room Number</p>
-              <Badge variant="outline" className="text-md font-bold animate-fade-in">
-                {roomDetails.roomNumber}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm text-muted-foreground">Building</p>
-                <p>{roomDetails.building}</p>
-              </div>
-              <div className="flex flex-col space-y-1">
-                <p className="text-sm text-muted-foreground">Floor</p>
-                <p>{roomDetails.floor}</p>
-              </div>
-            </div>
-            
-            <Separator />
-            
-            <div>
-              <p className="text-sm text-muted-foreground mb-2">Roommates</p>
+          <CardContent>
+            {room ? (
               <div className="space-y-2">
-                {roomDetails.roommates.map((roommate, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 rounded-md bg-accent/50 animate-fade-in">
-                    <div className="flex items-center space-x-2">
-                      <User className="h-4 w-4" />
-                      <span>{roommate.name}</span>
-                    </div>
-                    <span className="text-xs text-muted-foreground">{roommate.id}</span>
+                <div className="flex items-center">
+                  <BedDouble className="h-5 w-5 mr-2" />
+                  <span className="font-medium">{room.room_number}</span>
+                  <span className="text-sm text-muted-foreground ml-2">({room.floor})</span>
+                </div>
+                <div className="text-sm">
+                  <Badge variant={booking.payment_status === "paid" ? "success" : "warning"}>
+                    {booking.payment_status}
+                  </Badge>
+                  <span className="ml-2 text-muted-foreground">
+                    ${room.price_per_month}/month
+                  </span>
+                </div>
+                <div className="text-sm">
+                  <div className="font-medium">Amenities:</div>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {room.amenities && room.amenities.length > 0 ? (
+                      room.amenities.map((amenity: string, index: number) => (
+                        <Badge key={index} variant="outline" className="text-xs">
+                          {amenity}
+                        </Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground">None specified</span>
+                    )}
                   </div>
-                ))}
+                </div>
               </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No room assigned yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Today's Attendance</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center mb-4">
+              <Calendar className="h-5 w-5 mr-2" />
+              <span className="font-medium">{new Date().toDateString()}</span>
+            </div>
+            <div className="flex justify-center">
+              {isCheckedIn ? (
+                <Button onClick={handleCheckOut} className="bg-red-500 hover:bg-red-600">
+                  <LogOut className="h-4 w-4 mr-2" /> Check Out
+                </Button>
+              ) : (
+                <Button onClick={handleCheckIn} className="bg-green-500 hover:bg-green-600">
+                  <LogIn className="h-4 w-4 mr-2" /> Check In
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
         
-        {/* Attendance Card */}
-        <Card className="hover-scale">
-          <CardHeader>
-            <CardTitle>Attendance</CardTitle>
-            <CardDescription>Your monthly attendance status</CardDescription>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">My Roommates</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <CalendarClock className="h-5 w-5 text-student-dark" />
-                <span className="font-medium">This Month</span>
+          <CardContent>
+            {roommates.length > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 mr-2" />
+                  <span className="font-medium">{roommates.length} roommate(s)</span>
+                </div>
+                <ul className="space-y-2">
+                  {roommates.map((roommate) => (
+                    <li key={roommate.id} className="text-sm">
+                      <div className="font-medium">{roommate.full_name}</div>
+                      <div className="text-muted-foreground">{roommate.email}</div>
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <Badge className="bg-green-100 text-green-800 hover:bg-green-200">93% Present</Badge>
-            </div>
-            
-            <div className="w-full bg-secondary rounded-full h-2.5">
-              <div className="bg-student-dark h-2.5 rounded-full animate-pulse" style={{ width: "93%" }}></div>
-            </div>
-            
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Days Present: 28</span>
-              <span>Absences: 2</span>
-            </div>
-            
-            <Separator />
-            
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-2">Today's Status</p>
-              <Badge className="bg-green-500 text-white">Checked In</Badge>
-              <p className="text-xs text-muted-foreground mt-2">Last checked in at 08:30 AM</p>
-            </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No roommates currently</p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
       
-      {/* Mess Menu Tabs */}
-      <Card className="hover-scale">
+      <Card>
         <CardHeader>
-          <div className="flex items-center space-x-2">
-            <UtensilsCrossed className="h-5 w-5 text-student-dark" />
-            <CardTitle>Today's Mess Menu</CardTitle>
-          </div>
-          <CardDescription>What's cooking today</CardDescription>
+          <CardTitle>Today's Mess Menu</CardTitle>
+          <CardDescription>
+            {new Date().toDateString()}
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="breakfast" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="breakfast" className="flex items-center gap-2">
-                <Coffee className="h-4 w-4" />
-                Breakfast
-              </TabsTrigger>
-              <TabsTrigger value="lunch">Lunch</TabsTrigger>
-              <TabsTrigger value="dinner">Dinner</TabsTrigger>
-            </TabsList>
-            {Object.entries(todayMenu).map(([meal, items]) => (
-              <TabsContent key={meal} value={meal} className="animate-fade-in">
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2 mt-2">
-                  {items.map((item, i) => (
-                    <div
-                      key={i}
-                      className="bg-accent/50 p-3 rounded-md text-center animate-scale-in"
-                      style={{ animationDelay: `${i * 0.1}s` }}
-                    >
-                      <p className="font-medium">{item}</p>
-                    </div>
-                  ))}
+          {todayMenu.length > 0 ? (
+            <div className="space-y-4">
+              {todayMenu.map((meal) => (
+                <div key={meal.id} className="border-b pb-3 last:border-0">
+                  <div className="flex items-center mb-2">
+                    <UtensilsCrossed className="h-5 w-5 mr-2" />
+                    <h3 className="font-medium">{meal.meal_type}</h3>
+                  </div>
+                  <ul className="list-disc pl-10 space-y-1">
+                    {meal.items.map((item: string, index: number) => (
+                      <li key={index} className="text-sm">{item}</li>
+                    ))}
+                  </ul>
                 </div>
-              </TabsContent>
-            ))}
-          </Tabs>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-muted-foreground">No menu available for today</p>
+            </div>
+          )}
         </CardContent>
       </Card>
-      
-      {/* Quick Actions */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Button className="hover-scale flex items-center gap-2 h-12">
-          <MessageSquare className="h-5 w-5" />
-          Report an Issue
-        </Button>
-        <Button variant="outline" className="hover-scale flex items-center gap-2 h-12">
-          <Users className="h-5 w-5" />
-          Request Room Change
-        </Button>
-        <Button variant="secondary" className="hover-scale flex items-center gap-2 h-12">
-          <CalendarClock className="h-5 w-5" />
-          View Full Mess Schedule
-        </Button>
-      </div>
     </div>
   );
 }
