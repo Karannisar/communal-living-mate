@@ -78,10 +78,6 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
   
   const studentNavItems = [
     { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "my-room", label: "My Room", icon: BedDouble },
-    { id: "attendance", label: "Check In/Out", icon: Calendar },
-    { id: "mess-menu", label: "Mess Menu", icon: ClipboardList },
-    { id: "settings", label: "Settings", icon: Settings },
   ];
   
   const navItems = role === "admin" ? adminNavItems : studentNavItems;
