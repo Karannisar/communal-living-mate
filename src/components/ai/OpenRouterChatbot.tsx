@@ -2,7 +2,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +25,7 @@ export function OpenRouterChatbot() {
     {
       id: "welcome",
       role: "assistant",
-      content: "Hi there! I'm your DormMate AI assistant powered by Gemini. How can I help you with your dormitory needs today?",
+      content: "Hi there! I'm your DormMate AI assistant. How can I help you with your dormitory needs today?",
       timestamp: new Date(),
     },
   ]);
@@ -57,7 +56,22 @@ export function OpenRouterChatbot() {
     try {
       // Call our Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('openrouter-chat', {
-        body: { message: query }
+        body: { 
+          message: query,
+          systemPrompt: `You are a helpful AI assistant for the DormMate platform, a specialized dormitory and PG management service. 
+Your role is to guide students and administrators with:
+1. Finding and booking accommodations
+2. Room assignments and availability 
+3. Mess menu information
+4. Check-in/out procedures
+5. Payment questions and policies
+6. General dormitory rules and regulations
+7. Amenity information
+
+Be friendly, concise, and professional. For administrators, provide insights on management best practices.
+If asked about technical details of the system, simply explain that you can help with dormitory-related questions,
+but technical support should be directed to the IT team.`
+        }
       });
       
       if (error) {
@@ -126,7 +140,7 @@ export function OpenRouterChatbot() {
                   <AvatarImage src="/placeholder.svg" />
                   <AvatarFallback>AI</AvatarFallback>
                 </Avatar>
-                <CardTitle className="text-base">DormMate Gemini Assistant</CardTitle>
+                <CardTitle className="text-base">DormMate Assistant</CardTitle>
               </div>
               <Badge variant="outline" className="bg-green-100 text-green-800 text-xs">
                 Online

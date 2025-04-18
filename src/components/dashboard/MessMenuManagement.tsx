@@ -1,10 +1,35 @@
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -12,64 +37,77 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
-import { Trash2, Edit, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Plus, Edit, Trash2, Search, RefreshCw, Calendar } from "lucide-react";
+
+// Define schema for menu form
+const menuFormSchema = z.object({
+  day_of_week: z.string().min(1, { message: "Day of week is required." }),
+  meal_type: z.string().min(1, { message: "Meal type is required." }),
+  items: z.array(z.string()).min(1, { message: "At least one item is required." }),
+});
 
 export function MessMenuManagement() {
-  const [menuItems, setMenuItems] = useState([]);
+  const [menuItems, setMenuItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [currentId, setCurrentId] = useState(null);
+  const [currentMenu, setCurrentMenu] = useState<any>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [itemInput, setItemInput] = useState("");
+  const [menuItemsList, setMenuItemsList] = useState<string[]>([]);
+  const { toast } = useToast();
 
-  // Form state
-  const [dayOfWeek, setDayOfWeek] = useState("");
-  const [mealType, setMealType] = useState("");
-  const [items, setItems] = useState<string[]>([]);
-  const [newItem, setNewItem] = useState("");
+  const form = useForm<z.infer<typeof menuFormSchema>>({
+    resolver: zodResolver(menuFormSchema),
+    defaultValues: {
+      day_of_week: "",
+      meal_type: "",
+      items: [],
+    },
+  });
 
-  const daysOfWeek = [
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
-    "Sunday",
-  ];
+  const fetchMenuItems = async () => {
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("mess_menu")
+        .select("*")
+        .order("day_of_week", { ascending: true });
 
-  const mealTypes = ["Breakfast", "Lunch", "Dinner", "Snacks"];
+      if (error) throw error;
+      setMenuItems(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error fetching menu items",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     fetchMenuItems();
-
-    // Set up real-time subscription
+    
+    // Set up real-time updates for menu items
     const channel = supabase
-      .channel('mess-menu-changes')
-      .on('postgres_changes', { 
-        event: '*', 
-        schema: 'public', 
-        table: 'mess_menu' 
-      }, (payload) => {
-        fetchMenuItems();
-        
-        if (payload.eventType === 'INSERT') {
-          toast.success('New menu item added');
-        } else if (payload.eventType === 'UPDATE') {
-          toast.success('Menu item updated');
-        } else if (payload.eventType === 'DELETE') {
-          toast.success('Menu item deleted');
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'mess_menu'
+        },
+        () => {
+          fetchMenuItems();
         }
-      })
+      )
       .subscribe();
 
     return () => {
@@ -77,289 +115,366 @@ export function MessMenuManagement() {
     };
   }, []);
 
-  const fetchMenuItems = async () => {
-    setIsLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('mess_menu')
-        .select('*')
-        .order('day_of_week', { ascending: true });
+  const filteredMenuItems = menuItems.filter((menu) => 
+    menu.day_of_week.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    menu.meal_type.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
-      if (error) throw error;
-      setMenuItems(data || []);
-    } catch (error) {
-      console.error('Error fetching menu items:', error);
-      toast.error('Failed to load menu items');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleAddItem = () => {
-    if (newItem.trim()) {
-      setItems([...items, newItem.trim()]);
-      setNewItem("");
-    }
-  };
-
-  const handleRemoveItem = (index: number) => {
-    setItems(items.filter((_, i) => i !== index));
-  };
-
-  const resetForm = () => {
-    setDayOfWeek("");
-    setMealType("");
-    setItems([]);
-    setNewItem("");
-    setCurrentId(null);
+  const openAddDialog = () => {
+    form.reset({
+      day_of_week: "",
+      meal_type: "",
+      items: [],
+    });
+    setMenuItemsList([]);
+    setItemInput("");
     setIsEditing(false);
-  };
-
-  const handleOpenDialog = (menuItem = null) => {
-    resetForm();
-    
-    if (menuItem) {
-      setCurrentId(menuItem.id);
-      setDayOfWeek(menuItem.day_of_week);
-      setMealType(menuItem.meal_type);
-      setItems(menuItem.items || []);
-      setIsEditing(true);
-    }
-    
+    setCurrentMenu(null);
     setIsDialogOpen(true);
   };
 
-  const handleSaveMenu = async () => {
-    if (!dayOfWeek || !mealType || items.length === 0) {
-      toast.error('Please fill all required fields');
-      return;
-    }
-
-    try {
-      if (isEditing && currentId) {
-        // Update existing menu item
-        const { error } = await supabase
-          .from('mess_menu')
-          .update({
-            day_of_week: dayOfWeek,
-            meal_type: mealType,
-            items: items,
-            updated_at: new Date()
-          })
-          .eq('id', currentId);
-
-        if (error) throw error;
-      } else {
-        // Create new menu item
-        const { error } = await supabase
-          .from('mess_menu')
-          .insert({
-            day_of_week: dayOfWeek,
-            meal_type: mealType,
-            items: items
-          });
-
-        if (error) throw error;
-      }
-
-      setIsDialogOpen(false);
-      resetForm();
-    } catch (error) {
-      console.error('Error saving menu item:', error);
-      toast.error('Failed to save menu item');
-    }
+  const openEditDialog = (menu: any) => {
+    setIsEditing(true);
+    setCurrentMenu(menu);
+    setMenuItemsList(menu.items || []);
+    form.reset({
+      day_of_week: menu.day_of_week,
+      meal_type: menu.meal_type,
+      items: menu.items || [],
+    });
+    setIsDialogOpen(true);
   };
 
-  const handleDeleteMenu = async (id: string) => {
-    if (confirm('Are you sure you want to delete this menu item?')) {
-      try {
+  const onSubmit = async (values: z.infer<typeof menuFormSchema>) => {
+    try {
+      if (isEditing && currentMenu) {
+        // Update existing menu
         const { error } = await supabase
-          .from('mess_menu')
-          .delete()
-          .eq('id', id);
+          .from("mess_menu")
+          .update({
+            day_of_week: values.day_of_week,
+            meal_type: values.meal_type,
+            items: values.items,
+          })
+          .eq("id", currentMenu.id);
 
         if (error) throw error;
         
-        toast.success('Menu item deleted successfully');
-      } catch (error) {
-        console.error('Error deleting menu item:', error);
-        toast.error('Failed to delete menu item');
+        toast({
+          title: "Success",
+          description: "Menu updated successfully",
+        });
+      } else {
+        // Create new menu
+        const { error } = await supabase
+          .from("mess_menu")
+          .insert({
+            day_of_week: values.day_of_week,
+            meal_type: values.meal_type,
+            items: values.items,
+          });
+
+        if (error) throw error;
+        
+        toast({
+          title: "Success",
+          description: "Menu created successfully",
+        });
       }
+      
+      setIsDialogOpen(false);
+      fetchMenuItems();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const deleteMenu = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this menu item?")) return;
+    
+    try {
+      const { error } = await supabase
+        .from("mess_menu")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      
+      toast({
+        title: "Success",
+        description: "Menu deleted successfully",
+      });
+      
+      fetchMenuItems();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const addItemToList = () => {
+    if (itemInput.trim() === "") return;
+    
+    const newItems = [...menuItemsList, itemInput.trim()];
+    setMenuItemsList(newItems);
+    form.setValue("items", newItems);
+    setItemInput("");
+  };
+
+  const removeItemFromList = (index: number) => {
+    const newItems = menuItemsList.filter((_, i) => i !== index);
+    setMenuItemsList(newItems);
+    form.setValue("items", newItems);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addItemToList();
     }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Mess Menu Management</h2>
-        <Button onClick={() => handleOpenDialog()} className="flex items-center gap-2">
-          <Plus size={16} />
-          Add Menu Item
-        </Button>
-      </div>
-
-      {isLoading ? (
-        <div className="flex justify-center p-8">
-          <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+    <Card className="w-full">
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Mess Menu Management</CardTitle>
+        <div className="flex items-center space-x-2">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search menu..."
+              className="pl-9 w-[250px]"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button
+            onClick={() => fetchMenuItems()} 
+            variant="outline" 
+            size="icon"
+            title="Refresh"
+          >
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+          <Button onClick={openAddDialog} className="flex items-center gap-1">
+            <Plus className="h-4 w-4" /> Add Menu Item
+          </Button>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {menuItems.map((item: any) => (
-            <Card key={item.id} className="shadow-sm hover:shadow-md transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl">{item.day_of_week}</CardTitle>
-                    <Badge variant="outline" className="mt-1">
-                      {item.meal_type}
-                    </Badge>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleOpenDialog(item)}
-                    >
-                      <Edit className="h-4 w-4" />
-                      <span className="sr-only">Edit</span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDeleteMenu(item.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span className="sr-only">Delete</span>
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc pl-5 space-y-1">
-                  {item.items && item.items.map((food: string, index: number) => (
-                    <li key={index} className="text-sm">
-                      {food}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ))}
-          
-          {menuItems.length === 0 && (
-            <div className="col-span-full text-center p-8">
-              <p className="text-muted-foreground">No menu items found. Click "Add Menu Item" to create one.</p>
-            </div>
-          )}
-        </div>
-      )}
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableCaption>
+            {isLoading ? "Loading menu items..." : `A list of all mess menu items (${filteredMenuItems.length})`}
+          </TableCaption>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Day of Week</TableHead>
+              <TableHead>Meal Type</TableHead>
+              <TableHead>Items</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center">Loading...</TableCell>
+              </TableRow>
+            ) : filteredMenuItems.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} className="text-center">No menu items found</TableCell>
+              </TableRow>
+            ) : (
+              filteredMenuItems.map((menu) => (
+                <TableRow key={menu.id}>
+                  <TableCell className="font-medium">{menu.day_of_week}</TableCell>
+                  <TableCell>{menu.meal_type}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {menu.items && menu.items.length > 0 ? (
+                        menu.items.slice(0, 3).map((item: string, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {item}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-xs">None</span>
+                      )}
+                      {menu.items && menu.items.length > 3 && (
+                        <Badge variant="outline" className="text-xs">
+                          +{menu.items.length - 3}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => openEditDialog(menu)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="destructive" 
+                        size="sm"
+                        onClick={() => deleteMenu(menu.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {isEditing ? "Edit Menu Item" : "Add New Menu Item"}
-            </DialogTitle>
+            <DialogTitle>{isEditing ? "Edit Menu Item" : "Add New Menu Item"}</DialogTitle>
+            <DialogDescription>
+              {isEditing 
+                ? "Update mess menu information in the system." 
+                : "Fill in the details to add a new mess menu item to the system."}
+            </DialogDescription>
           </DialogHeader>
           
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="day">Day of Week</Label>
-                <Select
-                  value={dayOfWeek}
-                  onValueChange={setDayOfWeek}
-                >
-                  <SelectTrigger id="day">
-                    <SelectValue placeholder="Select day" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {daysOfWeek.map((day) => (
-                      <SelectItem key={day} value={day}>
-                        {day}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="meal">Meal Type</Label>
-                <Select
-                  value={mealType}
-                  onValueChange={setMealType}
-                >
-                  <SelectTrigger id="meal">
-                    <SelectValue placeholder="Select meal" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {mealTypes.map((type) => (
-                      <SelectItem key={type} value={type}>
-                        {type}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Menu Items</Label>
-              
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add food item"
-                  value={newItem}
-                  onChange={(e) => setNewItem(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddItem();
-                    }
-                  }}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="day_of_week"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Day of Week</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a day" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Monday">Monday</SelectItem>
+                          <SelectItem value="Tuesday">Tuesday</SelectItem>
+                          <SelectItem value="Wednesday">Wednesday</SelectItem>
+                          <SelectItem value="Thursday">Thursday</SelectItem>
+                          <SelectItem value="Friday">Friday</SelectItem>
+                          <SelectItem value="Saturday">Saturday</SelectItem>
+                          <SelectItem value="Sunday">Sunday</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-                <Button type="button" onClick={handleAddItem} size="sm">
-                  Add
-                </Button>
+                
+                <FormField
+                  control={form.control}
+                  name="meal_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Meal Type</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select meal type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="Breakfast">Breakfast</SelectItem>
+                          <SelectItem value="Lunch">Lunch</SelectItem>
+                          <SelectItem value="Dinner">Dinner</SelectItem>
+                          <SelectItem value="Snacks">Snacks</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
               
-              <div className="mt-2">
-                {items.map((item, index) => (
-                  <Badge 
-                    key={index} 
-                    variant="secondary"
-                    className="m-1 py-1"
-                  >
-                    {item}
-                    <button
-                      className="ml-1 text-xs hover:text-destructive"
-                      onClick={() => handleRemoveItem(index)}
-                    >
-                      ×
-                    </button>
-                  </Badge>
-                ))}
-                
-                {items.length === 0 && (
-                  <p className="text-xs text-muted-foreground py-1">
-                    No items added yet. Add at least one item.
-                  </p>
+              <FormField
+                control={form.control}
+                name="items"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Menu Items</FormLabel>
+                    <div className="flex gap-2">
+                      <FormControl>
+                        <Input
+                          placeholder="Add an item..."
+                          value={itemInput}
+                          onChange={(e) => setItemInput(e.target.value)}
+                          onKeyDown={handleKeyDown}
+                        />
+                      </FormControl>
+                      <Button 
+                        type="button" 
+                        variant="secondary" 
+                        onClick={addItemToList}
+                      >
+                        Add
+                      </Button>
+                    </div>
+                    
+                    {menuItemsList.length > 0 ? (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {menuItemsList.map((item, index) => (
+                          <Badge key={index} className="flex items-center gap-1">
+                            {item}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-4 w-4 p-0 hover:bg-transparent"
+                              onClick={() => removeItemFromList(index)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground mt-2">
+                        No items added yet. Add at least one item.
+                      </p>
+                    )}
+                    
+                    <FormMessage />
+                  </FormItem>
                 )}
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSaveMenu}>
-              {isEditing ? "Update" : "Save"}
-            </Button>
-          </DialogFooter>
+              />
+              
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {isEditing ? "Update Menu" : "Add Menu"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   );
 }

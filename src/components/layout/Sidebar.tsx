@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,8 @@ import {
   Settings,
   Menu,
   X,
+  LogOut,
+  UserCheck,
 } from "lucide-react";
 
 interface NavItemProps {
@@ -48,6 +50,11 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
   const [collapsed, setCollapsed] = useState(false);
   const [currentActiveItem, setCurrentActiveItem] = useState(activeItem);
   
+  // Update local active item when prop changes
+  useEffect(() => {
+    setCurrentActiveItem(activeItem);
+  }, [activeItem]);
+  
   const getRoleIcon = () => {
     switch (role) {
       case "admin":
@@ -63,6 +70,7 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
     { id: "dashboard", label: "Dashboard", icon: Home },
     { id: "students", label: "Students", icon: Users },
     { id: "rooms", label: "Rooms", icon: BedDouble },
+    { id: "room-assignments", label: "Room Assignments", icon: UserCheck },
     { id: "attendance", label: "Attendance", icon: Calendar },
     { id: "mess-menu", label: "Mess Menu", icon: ClipboardList },
     { id: "settings", label: "Settings", icon: Settings },
@@ -71,6 +79,7 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
   const studentNavItems = [
     { id: "dashboard", label: "Dashboard", icon: Home },
     { id: "my-room", label: "My Room", icon: BedDouble },
+    { id: "attendance", label: "Check In/Out", icon: Calendar },
     { id: "mess-menu", label: "Mess Menu", icon: ClipboardList },
     { id: "settings", label: "Settings", icon: Settings },
   ];
@@ -112,7 +121,7 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
         </Button>
       </div>
       <Separator />
-      <ScrollArea className="h-[calc(100vh-4rem)]">
+      <ScrollArea className="h-[calc(100vh-8rem)]">
         <div className="space-y-1 p-2">
           {navItems.map((item) => (
             <NavItem
@@ -125,6 +134,19 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
           ))}
         </div>
       </ScrollArea>
+      <div className="p-2 absolute bottom-0 w-full">
+        <Separator className="my-2" />
+        <Button 
+          variant="ghost" 
+          className={cn(
+            "w-full justify-start gap-3 text-destructive hover:bg-destructive/10 hover:text-destructive",
+          )}
+          onClick={() => window.location.href = "/auth"}
+        >
+          <LogOut className="h-5 w-5" />
+          {!collapsed && <span>Logout</span>}
+        </Button>
+      </div>
     </div>
   );
 }
