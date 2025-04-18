@@ -4,10 +4,11 @@ import { AdminDashboard } from "@/components/dashboard/AdminDashboard";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { LoadingScreen } from "@/components/ui/loading-screen";
 import { supabase } from "@/integrations/supabase/client";
+import { Toaster } from "sonner";
 
 const AdminPage = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [adminData, setAdminData] = useState(null);
+  const [adminData, setAdminData] = useState<any>(null);
   
   useEffect(() => {
     const fetchAdminData = async () => {
@@ -36,6 +37,20 @@ const AdminPage = () => {
     };
     
     fetchAdminData();
+    
+    // Set up real-time table changes to enable notifications
+    const realtime = supabase.channel('schema-db-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+      }, (payload) => {
+        console.log('Change received!', payload);
+      })
+      .subscribe();
+      
+    return () => {
+      supabase.removeChannel(realtime);
+    };
   }, []);
   
   if (isLoading) {
@@ -43,9 +58,12 @@ const AdminPage = () => {
   }
   
   return (
-    <DashboardLayout role="admin" userName={adminData?.full_name || "Admin User"} theme="theme-admin">
-      <AdminDashboard />
-    </DashboardLayout>
+    <>
+      <DashboardLayout role="admin" userName={adminData?.full_name || "Admin User"} theme="theme-admin">
+        <AdminDashboard />
+      </DashboardLayout>
+      <Toaster position="top-right" />
+    </>
   );
 };
 
