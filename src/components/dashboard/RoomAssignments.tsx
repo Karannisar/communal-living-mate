@@ -47,8 +47,12 @@ const bookingFormSchema = z.object({
   room_id: z.string().min(1, { message: "Room is required." }),
   start_date: z.string().min(1, { message: "Start date is required." }),
   end_date: z.string().min(1, { message: "End date is required." }),
-  payment_status: z.string().min(1, { message: "Payment status is required." }),
-  status: z.string().min(1, { message: "Status is required." }),
+  payment_status: z.enum(["pending", "paid", "failed"], { 
+    message: "Payment status must be 'pending', 'paid', or 'failed'." 
+  }),
+  status: z.enum(["active", "pending", "cancelled"], { 
+    message: "Status must be 'active', 'pending', or 'cancelled'." 
+  }),
 });
 
 export function RoomAssignments() {
@@ -202,6 +206,8 @@ export function RoomAssignments() {
 
   const onSubmit = async (values: z.infer<typeof bookingFormSchema>) => {
     try {
+      console.log("Submitting values:", values);
+      
       if (isEditing && currentBooking) {
         const { error: updateOldRoomError } = await supabase
           .from("rooms")
@@ -222,7 +228,10 @@ export function RoomAssignments() {
           })
           .eq("id", currentBooking.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error updating booking:", error);
+          throw error;
+        }
         
         const { error: updateNewRoomError } = await supabase
           .from("rooms")
@@ -247,7 +256,10 @@ export function RoomAssignments() {
             status: values.status,
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error creating booking:", error);
+          throw error;
+        }
         
         const { error: updateRoomError } = await supabase
           .from("rooms")

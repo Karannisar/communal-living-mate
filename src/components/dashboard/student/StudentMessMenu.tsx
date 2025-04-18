@@ -60,7 +60,7 @@ export function StudentMessMenu() {
                 <CardContent className="p-4">
                   <ScrollArea className="h-[100px]">
                     <ul className="space-y-1">
-                      {meal.items && meal.items.map((item: string, i: number) => (
+                      {Array.isArray(meal.items) && meal.items.map((item: string, i: number) => (
                         <li key={i} className="text-sm">• {item}</li>
                       ))}
                     </ul>

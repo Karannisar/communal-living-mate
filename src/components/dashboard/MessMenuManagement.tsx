@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -136,17 +135,26 @@ export function MessMenuManagement() {
   const openEditDialog = (menu: any) => {
     setIsEditing(true);
     setCurrentMenu(menu);
-    setMenuItemsList(menu.items || []);
+    
+    // Ensure items is an array
+    const itemsArray = Array.isArray(menu.items) ? menu.items : [];
+    
+    setMenuItemsList(itemsArray);
     form.reset({
       day_of_week: menu.day_of_week,
       meal_type: menu.meal_type,
-      items: menu.items || [],
+      items: itemsArray,
     });
     setIsDialogOpen(true);
   };
 
   const onSubmit = async (values: z.infer<typeof menuFormSchema>) => {
     try {
+      console.log("Submitting menu values:", values);
+      
+      // Make sure items is a valid array
+      const itemsArray = Array.isArray(values.items) ? values.items : [];
+      
       if (isEditing && currentMenu) {
         // Update existing menu
         const { error } = await supabase
@@ -154,11 +162,14 @@ export function MessMenuManagement() {
           .update({
             day_of_week: values.day_of_week,
             meal_type: values.meal_type,
-            items: values.items,
+            items: itemsArray,
           })
           .eq("id", currentMenu.id);
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error updating menu:", error);
+          throw error;
+        }
         
         toast({
           title: "Success",
@@ -171,10 +182,13 @@ export function MessMenuManagement() {
           .insert({
             day_of_week: values.day_of_week,
             meal_type: values.meal_type,
-            items: values.items,
+            items: itemsArray,
           });
 
-        if (error) throw error;
+        if (error) {
+          console.error("Error creating menu:", error);
+          throw error;
+        }
         
         toast({
           title: "Success",
