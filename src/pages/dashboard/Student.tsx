@@ -20,7 +20,7 @@ const StudentPage = () => {
             .from('users')
             .select('*')
             .eq('id', user.id)
-            .maybeSingle();
+            .single();
             
           if (error) throw error;
           setStudentData(data);

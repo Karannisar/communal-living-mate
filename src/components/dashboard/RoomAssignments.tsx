@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,7 +42,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Plus, Edit, Trash2, Search, RefreshCw, Calendar } from "lucide-react";
 
-// Define schema for booking form
 const bookingFormSchema = z.object({
   user_id: z.string().min(1, { message: "Student is required." }),
   room_id: z.string().min(1, { message: "Room is required." }),
@@ -142,7 +140,6 @@ export function RoomAssignments() {
     fetchStudents();
     fetchRooms();
     
-    // Set up real-time updates for bookings
     const channel = supabase
       .channel('schema-db-changes')
       .on(
@@ -206,7 +203,6 @@ export function RoomAssignments() {
   const onSubmit = async (values: z.infer<typeof bookingFormSchema>) => {
     try {
       if (isEditing && currentBooking) {
-        // Handle room availability for the old room
         const { error: updateOldRoomError } = await supabase
           .from("rooms")
           .update({ is_available: true })
@@ -214,7 +210,6 @@ export function RoomAssignments() {
           
         if (updateOldRoomError) throw updateOldRoomError;
         
-        // Update booking
         const { error } = await supabase
           .from("bookings")
           .update({
@@ -229,7 +224,6 @@ export function RoomAssignments() {
 
         if (error) throw error;
         
-        // Update room availability for the new room
         const { error: updateNewRoomError } = await supabase
           .from("rooms")
           .update({ is_available: false })
@@ -242,7 +236,6 @@ export function RoomAssignments() {
           description: "Room assignment updated successfully",
         });
       } else {
-        // Create new booking
         const { error } = await supabase
           .from("bookings")
           .insert({
@@ -256,7 +249,6 @@ export function RoomAssignments() {
 
         if (error) throw error;
         
-        // Update room availability
         const { error: updateRoomError } = await supabase
           .from("rooms")
           .update({ is_available: false })
@@ -274,6 +266,7 @@ export function RoomAssignments() {
       fetchBookings();
       fetchRooms(); // Refresh available rooms
     } catch (error: any) {
+      console.error("Assignment error:", error);
       toast({
         title: "Error",
         description: error.message,
@@ -293,7 +286,6 @@ export function RoomAssignments() {
 
       if (error) throw error;
       
-      // Update room availability
       const { error: updateRoomError } = await supabase
         .from("rooms")
         .update({ is_available: true })
