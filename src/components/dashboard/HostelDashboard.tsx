@@ -20,7 +20,8 @@ import { Progress } from "../ui/progress";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
-import { PhotoUpload } from "@/components/hostel/PhotoUpload";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface HostelDashboardProps {
   hostelData: any;
@@ -126,15 +127,6 @@ export function HostelDashboard({
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="mt-4">
-              <h3 className="text-lg font-semibold mb-2">Hostel Photos</h3>
-              <PhotoUpload 
-                onUpload={updateHostelPhotos}
-                existingPhotos={hostelData.photos || []}
-              />
-            </div>
-          </CardContent>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

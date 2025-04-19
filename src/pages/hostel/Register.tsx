@@ -1,39 +1,21 @@
+import { MainNavbar } from "@/components/layout/MainNavbar";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Building, Check, ChevronsUpDown, MapPin } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
-import { Building, Check, ChevronsUpDown, MapPin } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { MainNavbar } from "@/components/layout/MainNavbar";
 
 import {
+  getCommissionRate,
   hostelSchema,
-  HostelType,
   HostelSize,
-  LocationTier,
-  getCommissionRate
+  HostelType,
+  LocationTier
 } from "@/utils/hostel";
 
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Card,
   CardContent,
@@ -51,6 +33,24 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 const HostelRegister = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -78,25 +78,32 @@ const HostelRegister = () => {
     try {
       const commissionRate = getCommissionRate(data.size, data.location);
       
-      const safeHostelName = data.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const adminEmail = `admin@${safeHostelName}.com`;
-      const adminPassword = `${safeHostelName}123`;
-      
+      // Create the auth user first
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: adminEmail,
-        password: adminPassword,
+        email: data.email,
+        password: data.phone.replace(/[^0-9]/g, ''),
         options: {
           data: {
-            full_name: `${data.name} Admin`,
             role: "hostel",
-          }
+            name: data.name,
+          },
+          emailRedirectTo: `${window.location.origin}/auth/callback`
         }
       });
-      
-      if (authError) throw authError;
-      
-      if (authData.user) {
-        const { error: hostelError } = await supabase.from('hostels').insert({
+
+      if (authError) {
+        console.error('Auth Error:', authError);
+        throw new Error(`Authentication failed: ${authError.message}`);
+      }
+
+      if (!authData.user) {
+        throw new Error('Failed to create user account - no user data returned');
+      }
+
+      // Create the hostel record
+      const { error: hostelError } = await supabase
+        .from('hostels')
+        .insert({
           id: authData.user.id,
           name: data.name,
           size: data.size,
@@ -108,27 +115,30 @@ const HostelRegister = () => {
           description: data.description,
           commission_rate: commissionRate,
           is_verified: false,
-          photos: ['/placeholder.svg'] // Using a single placeholder image
+          photos: ['/placeholder.svg']
         });
-          
-        if (hostelError) throw hostelError;
-        
-        toast({
-          title: "Hostel registered successfully",
-          description: "Your hostel has been registered. Please check your email for verification.",
-        });
-        
-        setCredentials({
-          email: adminEmail,
-          password: adminPassword
-        });
-        setShowCredentials(true);
+
+      if (hostelError) {
+        console.error('Hostel Error:', hostelError);
+        throw new Error(`Failed to create hostel record: ${hostelError.message}`);
       }
-    } catch (error: any) {
+
+      toast({
+        title: "Hostel registered successfully",
+        description: "Please check your email for verification and login with your registered email.",
+      });
+
+      setCredentials({
+        email: data.email,
+        password: data.phone.replace(/[^0-9]/g, '')
+      });
+      setShowCredentials(true);
+
+    } catch (error) {
       console.error("Error registering hostel:", error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to register hostel",
+        title: "Registration Failed",
+        description: error instanceof Error ? error.message : "Failed to register hostel",
         variant: "destructive",
       });
     } finally {

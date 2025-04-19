@@ -1,5 +1,7 @@
-
-import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { cn } from "@/lib/utils";
+import { Building, Home, LogIn, Search, User } from "lucide-react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Logo } from "../Logo";
 import { ThemeSwitcher } from "../ThemeSwitcher";
@@ -13,9 +15,6 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "../ui/navigation-menu";
-import { cn } from "@/lib/utils";
-import { Building, Home, LogIn, Search, User } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 
 export function MainNavbar() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -107,27 +106,33 @@ export function MainNavbar() {
         <NavigationMenu>
           <NavigationMenuList>
             <NavigationMenuItem>
-              <Link to="/">
-                <NavigationMenuLink 
-                  className={navigationMenuTriggerStyle()}
-                  active={location.pathname === "/"}
+              <NavigationMenuLink asChild>
+                <Link 
+                  to="/"
+                  className={cn(
+                    navigationMenuTriggerStyle(),
+                    location.pathname === "/" && "bg-accent/50"
+                  )}
                 >
                   <Home className="mr-2 h-4 w-4" />
                   Home
-                </NavigationMenuLink>
-              </Link>
+                </Link>
+              </NavigationMenuLink>
             </NavigationMenuItem>
             
             <NavigationMenuItem>
-              <Link to="/hostels">
-                <NavigationMenuLink 
-                  className={navigationMenuTriggerStyle()}
-                  active={location.pathname === "/hostels"}
+              <NavigationMenuLink asChild>
+                <Link 
+                  to="/hostels"
+                  className={cn(
+                    navigationMenuTriggerStyle(),
+                    location.pathname === "/hostels" && "bg-accent/50"
+                  )}
                 >
                   <Building className="mr-2 h-4 w-4" />
                   Hostels
-                </NavigationMenuLink>
-              </Link>
+                </Link>
+              </NavigationMenuLink>
             </NavigationMenuItem>
             
             <NavigationMenuItem>
