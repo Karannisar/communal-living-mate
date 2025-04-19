@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,7 +6,6 @@ import { Building, Check, ChevronsUpDown, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MainNavbar } from "@/components/layout/MainNavbar";
-import { PhotoUpload } from "@/components/hostel/PhotoUpload";
 
 import {
   hostelSchema,
@@ -58,7 +56,6 @@ const HostelRegister = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [credentials, setCredentials] = useState({ email: "", password: "" });
-  const [photos, setPhotos] = useState<string[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -111,7 +108,7 @@ const HostelRegister = () => {
           description: data.description,
           commission_rate: commissionRate,
           is_verified: false,
-          photos: photos
+          photos: ['/placeholder.svg'] // Using a single placeholder image
         });
           
         if (hostelError) throw hostelError;
@@ -336,19 +333,6 @@ const HostelRegister = () => {
                         </FormItem>
                       )}
                     />
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-2">Hostel Photos</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Upload photos of your hostel to attract potential residents
-                      </p>
-                      <PhotoUpload 
-                        onUpload={setPhotos}
-                        existingPhotos={photos}
-                      />
-                    </div>
                   </div>
                   
                   <div className="flex justify-end">
