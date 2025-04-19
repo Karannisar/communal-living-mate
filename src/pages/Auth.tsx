@@ -1,104 +1,141 @@
 
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { LoginForm } from "@/components/auth/LoginForm";
 import { SignupForm } from "@/components/auth/SignupForm";
-import { useNavigate } from "react-router-dom";
+import { RoleSelection } from "@/components/auth/RoleSelection";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingScreen } from "@/components/ui/loading-screen";
+import { MainNavbar } from "@/components/layout/MainNavbar";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+
+type AuthView = "login" | "signup" | "role";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [view, setView] = useState<AuthView>("login");
   const navigate = useNavigate();
   
   useEffect(() => {
-    checkSession();
-  }, []);
-
-  const checkSession = async () => {
-    try {
-      setLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
       
-      if (session) {
-        await handleUserNavigation(session);
+      if (data.session) {
+        // User is already logged in, fetch their role
+        const { data: userData, error } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', data.session.user.id)
+          .single();
+          
+        if (userData && !error) {
+          // Redirect to appropriate dashboard based on role
+          redirectBasedOnRole(userData.role);
+        } else {
+          // User exists but no role assigned
+          setView("role");
+          setIsLoading(false);
+        }
+      } else {
+        // No active session, show login
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Session check error:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleUserNavigation = async (session) => {
-    const email = session.user.email;
+    };
     
-    if (email === "admin@dormmate.com") {
-      navigate('/admin');
-      return;
+    checkSession();
+  }, [navigate]);
+  
+  const redirectBasedOnRole = (role: string) => {
+    switch (role) {
+      case "admin":
+        navigate("/admin");
+        break;
+      case "student":
+        navigate("/student");
+        break;
+      case "hostel":
+        navigate("/hostel");
+        break;
+      default:
+        navigate("/");
     }
-
-    const { data: userData, error } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', session.user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error("Error fetching user role:", error);
-      // Default to student role if there's an error
-      navigate('/student');
-      return;
-    }
-
-    if (userData?.role) {
-      navigate(`/${userData.role}`);
-    } else {
-      // Handle new user with no role - create default student role
-      const { error: insertError } = await supabase
+  };
+  
+  const handleLogin = async () => {
+    // After successful login, get user role and redirect
+    const { data } = await supabase.auth.getSession();
+    
+    if (data.session) {
+      const { data: userData, error } = await supabase
         .from('users')
-        .insert({
-          id: session.user.id,
-          email: session.user.email,
-          role: 'student'
-        });
-
-      if (insertError) {
-        console.error("Error creating user record:", insertError);
+        .select('role')
+        .eq('id', data.session.user.id)
+        .single();
+        
+      if (userData && !error) {
+        redirectBasedOnRole(userData.role);
+      } else {
+        // No role assigned, show role selection
+        setView("role");
       }
-      
-      navigate('/student');
     }
   };
-
-  const toggleAuthMode = () => {
-    setIsLogin(!isLogin);
+  
+  const handleSignup = () => {
+    // After signup, show login view
+    setView("login");
   };
-
-  const handleLoginSuccess = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) {
-      await handleUserNavigation(session);
+  
+  const handleRoleSelect = async (role: string) => {
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+      // Update user role
+      const { error } = await supabase
+        .from('users')
+        .update({ role })
+        .eq('id', user.id);
+        
+      if (!error) {
+        // Redirect based on selected role
+        redirectBasedOnRole(role);
+      }
     }
   };
-
-  if (loading) {
+  
+  if (isLoading) {
     return <LoadingScreen message="Checking authentication..." />;
   }
-
+  
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-gradient-to-b from-background to-muted/50">
-      <div className="w-full max-w-md space-y-8 text-center animate-fade-in">
-        <div className="space-y-2">
-          <h1 className="text-4xl font-bold tracking-tight">DormMate</h1>
-          <p className="text-xl text-muted-foreground">Dormitory Management System</p>
+    <div className="min-h-screen bg-background">
+      <MainNavbar />
+      
+      <div className="container flex items-center justify-center min-h-screen py-16">
+        <div className="w-full max-w-md">
+          <div className="absolute top-6 right-6">
+            <ThemeSwitcher />
+          </div>
+          
+          {view === "login" && (
+            <LoginForm
+              onLogin={handleLogin}
+              onSignupClick={() => setView("signup")}
+            />
+          )}
+          
+          {view === "signup" && (
+            <SignupForm
+              onSignup={handleSignup}
+              onLoginClick={() => setView("login")}
+            />
+          )}
+          
+          {view === "role" && (
+            <RoleSelection onRoleSelect={handleRoleSelect} />
+          )}
         </div>
-        
-        {isLogin ? (
-          <LoginForm onLogin={handleLoginSuccess} onSignupClick={toggleAuthMode} />
-        ) : (
-          <SignupForm onSignup={toggleAuthMode} onLoginClick={toggleAuthMode} />
-        )}
       </div>
     </div>
   );

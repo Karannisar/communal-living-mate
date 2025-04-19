@@ -245,6 +245,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_room_active_bookings: {
+        Args: { room_id_param: string }
+        Returns: number
+      }
       hash_password: {
         Args: { password: string }
         Returns: string
