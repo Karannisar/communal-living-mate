@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -81,7 +82,7 @@ const HostelRegister = () => {
       const commissionRate = getCommissionRate(data.size, data.location);
       
       const safeHostelName = data.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const adminEmail = `admin@${safeHostelName}.com";
+      const adminEmail = `admin@${safeHostelName}.com`;
       const adminPassword = `${safeHostelName}123`;
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -89,7 +90,7 @@ const HostelRegister = () => {
         password: adminPassword,
         options: {
           data: {
-            full_name: `${data.name} Admin",
+            full_name: `${data.name} Admin`,
             role: "hostel",
           }
         }
