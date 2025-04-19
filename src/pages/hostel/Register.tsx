@@ -100,11 +100,13 @@ const HostelRegister = () => {
       if (authError) throw authError;
       
       if (authData.user) {
-        // Now create the hostel record
+        // Now create the users record (handled by trigger)
+        
+        // And create the hostel record with the new schema
         const { error: hostelError } = await supabase
           .from('hostels')
           .insert({
-            id: authData.user.id, // Use the auth user ID as the hostel ID
+            id: authData.user.id,
             name: data.name,
             size: data.size,
             location_tier: data.location,
@@ -114,8 +116,7 @@ const HostelRegister = () => {
             phone: data.phone,
             description: data.description,
             commission_rate: commissionRate,
-            is_verified: false, // Requires admin verification
-            created_at: new Date().toISOString()
+            is_verified: false
           });
           
         if (hostelError) throw hostelError;

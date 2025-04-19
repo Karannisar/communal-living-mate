@@ -1,17 +1,6 @@
 
-import { AiMessage, AiResponseOptions } from "../types/ai";
-
-export interface AiResponseOptions {
-  model?: string;
-  systemPrompt?: string;
-  temperature?: number;
-  maxTokens?: number;
-}
-
-export interface AiMessage {
-  role: "user" | "assistant" | "system";
-  content: string;
-}
+// Using the types from the types/ai.ts file
+import { AiMessage, AiResponseOptions } from "@/types/ai";
 
 const DEFAULT_OPTIONS: AiResponseOptions = {
   model: "google/gemini-1.5-flash-latest",

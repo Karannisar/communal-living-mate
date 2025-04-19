@@ -30,15 +30,28 @@ const HostelPage = () => {
           if (userData.role === 'hostel') {
             setIsAuthorized(true);
             
-            // Get hostel data
+            // Get hostel data - now using the proper "hostels" table we just created
             const { data: hostelData, error: hostelError } = await supabase
               .from('hostels')
               .select('*')
               .eq('id', user.id)
               .single();
               
-            if (hostelError) throw hostelError;
-            setHostelData(hostelData);
+            if (hostelError && hostelError.code !== 'PGRST116') {
+              // If it's not the "no rows returned" error, throw it
+              throw hostelError;
+            }
+            
+            // If we have hostel data, set it
+            if (hostelData) {
+              setHostelData(hostelData);
+            } else {
+              // If we don't have hostel data yet, just use the user data with a default name
+              setHostelData({
+                name: userData.full_name || "New Hostel",
+                ...userData
+              });
+            }
           } else {
             setIsAuthorized(false);
           }
