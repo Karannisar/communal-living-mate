@@ -143,6 +143,54 @@ export type Database = {
           },
         ]
       }
+      hostels: {
+        Row: {
+          address: string
+          city: string
+          commission_rate: number
+          created_at: string
+          description: string
+          email: string
+          id: string
+          is_verified: boolean
+          location_tier: string
+          name: string
+          phone: string
+          size: string
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          city: string
+          commission_rate?: number
+          created_at?: string
+          description: string
+          email: string
+          id: string
+          is_verified?: boolean
+          location_tier: string
+          name: string
+          phone: string
+          size: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          city?: string
+          commission_rate?: number
+          created_at?: string
+          description?: string
+          email?: string
+          id?: string
+          is_verified?: boolean
+          location_tier?: string
+          name?: string
+          phone?: string
+          size?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mess_menu: {
         Row: {
           created_at: string

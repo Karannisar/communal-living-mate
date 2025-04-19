@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -26,11 +25,9 @@ const HostelPage = () => {
             
           if (userError) throw userError;
           
-          // Check if user has hostel role
           if (userData.role === 'hostel') {
             setIsAuthorized(true);
             
-            // Get hostel data - now using the proper "hostels" table we just created
             const { data: hostelData, error: hostelError } = await supabase
               .from('hostels')
               .select('*')
@@ -38,19 +35,11 @@ const HostelPage = () => {
               .single();
               
             if (hostelError && hostelError.code !== 'PGRST116') {
-              // If it's not the "no rows returned" error, throw it
               throw hostelError;
             }
             
-            // If we have hostel data, set it
             if (hostelData) {
               setHostelData(hostelData);
-            } else {
-              // If we don't have hostel data yet, just use the user data with a default name
-              setHostelData({
-                name: userData.full_name || "New Hostel",
-                ...userData
-              });
             }
           } else {
             setIsAuthorized(false);
@@ -62,7 +51,6 @@ const HostelPage = () => {
         console.error("Error fetching hostel data:", error);
         setIsAuthorized(false);
       } finally {
-        // Add a small delay to show loading screen
         setTimeout(() => {
           setIsLoading(false);
         }, 1000);
