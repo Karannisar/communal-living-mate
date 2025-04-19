@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -40,6 +41,14 @@ const HostelPage = () => {
             
             if (hostelData) {
               setHostelData(hostelData);
+            } else {
+              // If we don't have hostel data yet, use default values with user info
+              setHostelData({
+                name: userData.full_name || "New Hostel",
+                email: userData.email,
+                id: userData.id,
+                is_verified: false
+              });
             }
           } else {
             setIsAuthorized(false);

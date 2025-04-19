@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -99,10 +100,17 @@ const HostelRegister = () => {
       if (authError) throw authError;
       
       if (authData.user) {
-        // Now create the hostel record
+        // Now create the hostel record - map the fields correctly to match the database schema
         const { error: hostelError } = await supabase.from('hostels').insert({
           id: authData.user.id,
-          ...data,
+          name: data.name,
+          size: data.size,
+          location_tier: data.location, // Map 'location' from form to 'location_tier' in DB
+          address: data.address,
+          city: data.city,
+          email: data.email,
+          phone: data.phone,
+          description: data.description,
           commission_rate: commissionRate,
           is_verified: false
         });
