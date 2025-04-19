@@ -156,6 +156,7 @@ export type Database = {
           location_tier: string
           name: string
           phone: string
+          photos: string[] | null
           size: string
           updated_at: string
         }
@@ -171,6 +172,7 @@ export type Database = {
           location_tier: string
           name: string
           phone: string
+          photos?: string[] | null
           size: string
           updated_at?: string
         }
@@ -186,6 +188,7 @@ export type Database = {
           location_tier?: string
           name?: string
           phone?: string
+          photos?: string[] | null
           size?: string
           updated_at?: string
         }

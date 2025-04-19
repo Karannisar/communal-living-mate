@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +20,7 @@ import { Progress } from "../ui/progress";
 import { Button } from "../ui/button";
 import { Separator } from "../ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import { PhotoUpload } from "@/components/hostel/PhotoUpload";
 
 interface HostelDashboardProps {
   hostelData: any;
@@ -36,7 +36,6 @@ export function HostelDashboard({
   const [activeTab, setActiveTab] = useState("overview");
   const isMobile = useIsMobile();
   
-  // Function to get appropriate badge color based on location tier
   const getLocationBadgeStyle = (tier: string) => {
     switch (tier) {
       case "tier_1":
@@ -50,7 +49,6 @@ export function HostelDashboard({
     }
   };
 
-  // Function to get formatted location tier name
   const getLocationTierName = (tier: string) => {
     switch (tier) {
       case "tier_1":
@@ -64,7 +62,6 @@ export function HostelDashboard({
     }
   };
   
-  // Mock data for dashboard
   const stats = {
     totalRooms: 48,
     occupiedRooms: 32,
@@ -81,9 +78,24 @@ export function HostelDashboard({
     { id: 4, student: "Michael Brown", room: "304", date: "2025-04-10", status: "cancelled" }
   ];
   
-  // Commission rate based on hostel size and location
   const commissionRate = hostelData?.commission_rate || 0.1; // Default to 10% if not set
   
+  const updateHostelPhotos = async (photos: string[]) => {
+    try {
+      const { error } = await supabase
+        .from('hostels')
+        .update({ photos })
+        .eq('id', hostelData.id);
+
+      if (error) throw error;
+      
+      hostelData.photos = photos;
+    } catch (error: any) {
+      console.error('Error updating photos:', error);
+      toast.error('Failed to update photos');
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col space-y-6">
@@ -114,6 +126,15 @@ export function HostelDashboard({
               </div>
             </div>
           </CardHeader>
+          <CardContent>
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-2">Hostel Photos</h3>
+              <PhotoUpload 
+                onUpload={updateHostelPhotos}
+                existingPhotos={hostelData.photos || []}
+              />
+            </div>
+          </CardContent>
         </Card>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

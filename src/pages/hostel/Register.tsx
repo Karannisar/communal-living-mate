@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,6 +6,7 @@ import { Building, Check, ChevronsUpDown, MapPin } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { MainNavbar } from "@/components/layout/MainNavbar";
+import { PhotoUpload } from "@/components/hostel/PhotoUpload";
 
 import {
   hostelSchema,
@@ -57,6 +57,7 @@ const HostelRegister = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showCredentials, setShowCredentials] = useState(false);
   const [credentials, setCredentials] = useState({ email: "", password: "" });
+  const [photos, setPhotos] = useState<string[]>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -77,21 +78,18 @@ const HostelRegister = () => {
   const onSubmit = async (data: HostelType) => {
     setIsLoading(true);
     try {
-      // Get commission rate based on hostel size and location
       const commissionRate = getCommissionRate(data.size, data.location);
       
-      // Generate admin credentials
       const safeHostelName = data.name.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const adminEmail = `admin@${safeHostelName}.com`;
+      const adminEmail = `admin@${safeHostelName}.com";
       const adminPassword = `${safeHostelName}123`;
       
-      // First create the admin user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: adminEmail,
         password: adminPassword,
         options: {
           data: {
-            full_name: `${data.name} Admin`,
+            full_name: `${data.name} Admin",
             role: "hostel",
           }
         }
@@ -100,19 +98,19 @@ const HostelRegister = () => {
       if (authError) throw authError;
       
       if (authData.user) {
-        // Now create the hostel record - map the fields correctly to match the database schema
         const { error: hostelError } = await supabase.from('hostels').insert({
           id: authData.user.id,
           name: data.name,
           size: data.size,
-          location_tier: data.location, // Map 'location' from form to 'location_tier' in DB
+          location_tier: data.location,
           address: data.address,
           city: data.city,
           email: data.email,
           phone: data.phone,
           description: data.description,
           commission_rate: commissionRate,
-          is_verified: false
+          is_verified: false,
+          photos: photos
         });
           
         if (hostelError) throw hostelError;
@@ -122,7 +120,6 @@ const HostelRegister = () => {
           description: "Your hostel has been registered. Please check your email for verification.",
         });
         
-        // Show admin credentials
         setCredentials({
           email: adminEmail,
           password: adminPassword
@@ -340,6 +337,19 @@ const HostelRegister = () => {
                     />
                   </div>
                   
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-lg font-semibold mb-2">Hostel Photos</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Upload photos of your hostel to attract potential residents
+                      </p>
+                      <PhotoUpload 
+                        onUpload={setPhotos}
+                        existingPhotos={photos}
+                      />
+                    </div>
+                  </div>
+                  
                   <div className="flex justify-end">
                     <Button 
                       type="submit" 
@@ -356,7 +366,6 @@ const HostelRegister = () => {
         </div>
       </div>
       
-      {/* Credentials Dialog */}
       <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
