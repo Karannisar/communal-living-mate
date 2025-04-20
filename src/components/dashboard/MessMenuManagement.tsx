@@ -1,17 +1,5 @@
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -29,6 +17,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -36,11 +25,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { useForm } from "react-hook-form";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Calendar, Edit, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Plus, Edit, Trash2, Search, RefreshCw, Calendar } from "lucide-react";
 
 // Define schema for menu form
 const menuFormSchema = z.object({
@@ -383,13 +383,13 @@ export function MessMenuManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Monday">Monday</SelectItem>
-                          <SelectItem value="Tuesday">Tuesday</SelectItem>
-                          <SelectItem value="Wednesday">Wednesday</SelectItem>
-                          <SelectItem value="Thursday">Thursday</SelectItem>
-                          <SelectItem value="Friday">Friday</SelectItem>
-                          <SelectItem value="Saturday">Saturday</SelectItem>
-                          <SelectItem value="Sunday">Sunday</SelectItem>
+                          <SelectItem value="monday">Monday</SelectItem>
+                          <SelectItem value="tuesday">Tuesday</SelectItem>
+                          <SelectItem value="wednesday">Wednesday</SelectItem>
+                          <SelectItem value="thursday">Thursday</SelectItem>
+                          <SelectItem value="friday">Friday</SelectItem>
+                          <SelectItem value="saturday">Saturday</SelectItem>
+                          <SelectItem value="sunday">Sunday</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -413,10 +413,10 @@ export function MessMenuManagement() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="Breakfast">Breakfast</SelectItem>
-                          <SelectItem value="Lunch">Lunch</SelectItem>
-                          <SelectItem value="Dinner">Dinner</SelectItem>
-                          <SelectItem value="Snacks">Snacks</SelectItem>
+                          <SelectItem value="breakfast">Breakfast</SelectItem>
+                          <SelectItem value="lunch">Lunch</SelectItem>
+                          <SelectItem value="dinner">Dinner</SelectItem>
+                          <SelectItem value="snacks">Snacks</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

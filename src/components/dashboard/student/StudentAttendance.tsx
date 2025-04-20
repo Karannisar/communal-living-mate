@@ -1,56 +1,73 @@
-
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { Calendar, CheckCircle2, Clock, Loader2, XCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Calendar, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+
+interface AttendanceRecord {
+  id: string;
+  user_id: string;
+  date: string;
+  check_in: string | null;
+  check_out: string | null;
+  created_at: string;
+}
 
 export function StudentAttendance() {
-  const [attendanceStatus, setAttendanceStatus] = useState<any>(null);
+  const [attendanceStatus, setAttendanceStatus] = useState<AttendanceRecord | null>(null);
   const [checkingInOut, setCheckingInOut] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const fetchAttendanceStatus = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not authenticated");
+      
+      const today = new Date().toISOString().split('T')[0];
+      console.log("Fetching attendance for date:", today);
+
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("date", today)
+        .maybeSingle();
+
+      console.log("Attendance data:", data);
+      console.log("Attendance error:", error);
+
+      if (error) throw error;
+      setAttendanceStatus(data);
+    } catch (error) {
+      console.error("Error checking attendance status:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchAttendanceStatus = async () => {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) throw new Error("User not authenticated");
-        
-        const today = new Date().toISOString().split('T')[0];
-        const { data, error } = await supabase
-          .from("attendance")
-          .select("*")
-          .eq("user_id", user.id)
-          .eq("date", today)
-          .maybeSingle();
-
-        if (error) throw error;
-        setAttendanceStatus(data);
-      } catch (error) {
-        console.error("Error checking attendance status:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     fetchAttendanceStatus();
 
     // Set up real-time updates for attendance
     const channel = supabase
-      .channel('attendance-updates')
+      .channel('attendance-changes')
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'attendance',
         filter: `user_id=eq.${supabase.auth.getUser().then(({ data }) => data.user?.id)}`
-      }, () => {
+      }, (payload) => {
+        console.log("Real-time update received:", payload);
         fetchAttendanceStatus();
       })
-      .subscribe();
+      .subscribe(status => {
+        console.log("Subscription status:", status);
+      });
 
     return () => {
+      console.log("Cleaning up subscription");
       supabase.removeChannel(channel);
     };
   }, []);
@@ -64,26 +81,40 @@ export function StudentAttendance() {
       const today = new Date().toISOString().split('T')[0];
       const now = new Date().toISOString();
 
+      console.log("Attempting check-in for user:", user.id);
+
       if (!attendanceStatus) {
         // Create new attendance record
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("attendance")
           .insert({
             user_id: user.id,
             date: today,
             check_in: now
-          });
+          })
+          .select()
+          .single();
+
+        console.log("New check-in data:", data);
+        console.log("New check-in error:", error);
 
         if (error) throw error;
+        setAttendanceStatus(data);
         toast.success("You have successfully checked in");
       } else {
         // Update existing record with check-in time
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("attendance")
           .update({ check_in: now })
-          .eq("id", attendanceStatus.id);
+          .eq("id", attendanceStatus.id)
+          .select()
+          .single();
+
+        console.log("Update check-in data:", data);
+        console.log("Update check-in error:", error);
 
         if (error) throw error;
+        setAttendanceStatus(data);
         toast.success("Your check-in time has been updated");
       }
     } catch (error) {
@@ -103,26 +134,40 @@ export function StudentAttendance() {
       const today = new Date().toISOString().split('T')[0];
       const now = new Date().toISOString();
 
+      console.log("Attempting check-out for user:", user.id);
+
       if (!attendanceStatus) {
         // Create new attendance record with checkout time only
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("attendance")
           .insert({
             user_id: user.id,
             date: today,
             check_out: now
-          });
+          })
+          .select()
+          .single();
+
+        console.log("New check-out data:", data);
+        console.log("New check-out error:", error);
 
         if (error) throw error;
+        setAttendanceStatus(data);
         toast.success("You have successfully checked out");
       } else {
         // Update existing record with check-out time
-        const { error } = await supabase
+        const { data, error } = await supabase
           .from("attendance")
           .update({ check_out: now })
-          .eq("id", attendanceStatus.id);
+          .eq("id", attendanceStatus.id)
+          .select()
+          .single();
+
+        console.log("Update check-out data:", data);
+        console.log("Update check-out error:", error);
 
         if (error) throw error;
+        setAttendanceStatus(data);
         toast.success("Your check-out time has been updated");
       }
     } catch (error) {

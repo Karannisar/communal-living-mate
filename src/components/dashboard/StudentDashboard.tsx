@@ -2,10 +2,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
-import { BedDouble, Clock, Utensils } from "lucide-react";
+import { BedDouble, CalendarDays, Clock, User, Utensils } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { DormAiAssistant } from "../ai/DormAiAssistant";
 import { StudentAttendance } from "./student/StudentAttendance";
 import { StudentMessMenu } from "./student/StudentMessMenu";
@@ -56,38 +57,62 @@ export function StudentDashboard({ activeSection = "dashboard", setActiveSection
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[500px]">
-        <div className="animate-spin text-primary">
-          <Clock className="h-8 w-8" />
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-full border-4 border-primary/20 animate-spin"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Clock className="w-8 h-8 text-primary animate-pulse" />
+            </div>
+          </div>
+          <p className="text-muted-foreground animate-pulse">Loading your dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col space-y-6">
-        <Card>
+        <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-background border-none">
           <CardHeader>
-            <CardTitle>Welcome back, {student?.full_name || "Student"}!</CardTitle>
-            <CardDescription>
-              Manage your room, attendance, and mess menu all in one place.
-            </CardDescription>
+            <div className="flex items-start justify-between">
+              <div className="space-y-2">
+                <CardTitle className="text-3xl">Welcome back, {student?.full_name || "Student"}!</CardTitle>
+                <CardDescription className="text-base">
+                  Manage your room, attendance, and mess menu all in one place.
+                </CardDescription>
+              </div>
+              <Badge variant="outline" className="flex items-center gap-1">
+                <User className="w-3 h-3" />
+                <span>Student</span>
+              </Badge>
+            </div>
+            <div className="flex flex-wrap gap-4 mt-4">
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <CalendarDays className="w-3 h-3" />
+                <span>Joined {new Date(student?.created_at || "").toLocaleDateString()}</span>
+              </Badge>
+              <Badge variant="secondary" className="flex items-center gap-1">
+                <User className="w-3 h-3" />
+                <span>{student?.email}</span>
+              </Badge>
+            </div>
           </CardHeader>
         </Card>
 
-        <Card>
+        <Card className="border-none shadow-md">
           <CardContent className="p-0">
             <Tabs defaultValue="overview" value={activeTab} onValueChange={setActiveTab}>
               <TabsList className={`grid w-full ${isMobile ? 'grid-cols-3' : 'grid-cols-3'} p-2`}>
-                <TabsTrigger value="overview" className="flex items-center gap-2">
+                <TabsTrigger value="overview" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   <BedDouble className="h-4 w-4" />
                   <span>Room</span>
                 </TabsTrigger>
-                <TabsTrigger value="attendance" className="flex items-center gap-2">
+                <TabsTrigger value="attendance" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   <Clock className="h-4 w-4" />
                   <span>Attendance</span>
                 </TabsTrigger>
-                <TabsTrigger value="mess" className="flex items-center gap-2">
+                <TabsTrigger value="mess" className="flex items-center gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   <Utensils className="h-4 w-4" />
                   <span>Mess Menu</span>
                 </TabsTrigger>

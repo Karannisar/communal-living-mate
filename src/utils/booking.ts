@@ -3,27 +3,31 @@ import { z } from "zod";
 // Valid status enums
 export const PaymentStatus = {
   pending: "pending",
-  paid: "paid",
-  failed: "failed",
+  partial: "partial",
+  complete: "complete",
+  refunded: "refunded",
 } as const;
 
 export const BookingStatus = {
-  ACTIVE: "active",
   PENDING: "pending",
+  APPROVED: "approved",
   CANCELLED: "cancelled",
+  COMPLETED: "completed",
 } as const;
 
 // Zod schemas for validation
 export const paymentStatusSchema = z.enum([
   PaymentStatus.pending,
-  PaymentStatus.paid,
-  PaymentStatus.failed,
+  PaymentStatus.partial,
+  PaymentStatus.complete,
+  PaymentStatus.refunded,
 ]);
 
 export const bookingStatusSchema = z.enum([
-  BookingStatus.ACTIVE,
   BookingStatus.PENDING,
+  BookingStatus.APPROVED,
   BookingStatus.CANCELLED,
+  BookingStatus.COMPLETED,
 ]);
 
 // Type definitions

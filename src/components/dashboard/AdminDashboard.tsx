@@ -1,20 +1,22 @@
-
-import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
-import { StudentsManagement } from "./StudentsManagement";
-import { RoomsManagement } from "./RoomsManagement";
-import { RoomAssignments } from "./RoomAssignments";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { AttendanceMonitoring } from "./AttendanceMonitoring";
 import { MessMenuManagement } from "./MessMenuManagement";
-import { Loader2 } from "lucide-react";
+import { RoomAssignments } from "./RoomAssignments";
+import { RoomsManagement } from "./RoomsManagement";
+import { StudentsManagement } from "./StudentsManagement";
 
 export function AdminDashboard({ activeSection = "dashboard", setActiveSection }: { activeSection?: string, setActiveSection?: (section: string) => void }) {
   const [dashboardStats, setDashboardStats] = useState({
     totalStudents: 0,
     availableRooms: 0,
     currentCheckins: 0,
-    occupancyRate: "0%"
+    occupancyRate: "0%",
+    totalRooms: 0,
+    totalCapacity: 0,
+    totalOccupied: 0
   });
   const [isLoading, setIsLoading] = useState(true);
   
@@ -31,20 +33,28 @@ export function AdminDashboard({ activeSection = "dashboard", setActiveSection }
           
         if (studentsError) throw studentsError;
         
-        // Get available rooms
-        const { data: availableRooms, error: roomsError } = await supabase
+        // Get rooms with their booking counts
+        const { data: rooms, error: roomsError } = await supabase
           .from("rooms")
-          .select("id")
-          .eq("is_available", true);
+          .select(`
+            id,
+            capacity,
+            bookings:bookings(count)
+          `);
           
         if (roomsError) throw roomsError;
         
-        // Get total rooms for occupancy calculation
-        const { data: totalRooms, error: totalRoomsError } = await supabase
-          .from("rooms")
-          .select("id");
-          
-        if (totalRoomsError) throw totalRoomsError;
+        // Calculate available rooms and occupancy
+        const roomStats = (rooms || []).reduce((acc, room) => {
+          const currentOccupancy = room.bookings?.[0]?.count || 0;
+          const isAvailable = currentOccupancy < room.capacity;
+          return {
+            totalRooms: acc.totalRooms + 1,
+            availableRooms: acc.availableRooms + (isAvailable ? 1 : 0),
+            totalCapacity: acc.totalCapacity + room.capacity,
+            totalOccupied: acc.totalOccupied + currentOccupancy
+          };
+        }, { totalRooms: 0, availableRooms: 0, totalCapacity: 0, totalOccupied: 0 });
         
         // Get current check-ins
         const today = new Date().toISOString().split('T')[0];
@@ -56,16 +66,19 @@ export function AdminDashboard({ activeSection = "dashboard", setActiveSection }
           
         if (checkInsError) throw checkInsError;
         
-        // Calculate occupancy rate
-        const occupancyRate = totalRooms.length > 0 
-          ? Math.round(((totalRooms.length - availableRooms.length) / totalRooms.length) * 100) 
+        // Calculate occupancy rate based on total capacity vs occupied spots
+        const occupancyRate = roomStats.totalCapacity > 0 
+          ? Math.round((roomStats.totalOccupied / roomStats.totalCapacity) * 100)
           : 0;
         
         setDashboardStats({
           totalStudents: students?.length || 0,
-          availableRooms: availableRooms?.length || 0,
+          availableRooms: roomStats.availableRooms,
           currentCheckins: checkIns?.length || 0,
-          occupancyRate: `${occupancyRate}%`
+          occupancyRate: `${occupancyRate}%`,
+          totalRooms: roomStats.totalRooms,
+          totalCapacity: roomStats.totalCapacity,
+          totalOccupied: roomStats.totalOccupied
         });
       } catch (error) {
         console.error("Error fetching dashboard stats:", error);
@@ -81,65 +94,46 @@ export function AdminDashboard({ activeSection = "dashboard", setActiveSection }
   
   // Dashboard overview component
   const DashboardOverview = () => (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Students</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading...</span>
-            </div>
-          ) : (
-            <>
-              <div className="text-2xl font-bold">{dashboardStats.totalStudents}</div>
-              <p className="text-xs text-muted-foreground">
-                Registered students in system
-              </p>
-            </>
-          )}
+          <div className="text-2xl font-bold">{dashboardStats.totalStudents}</div>
+          <p className="text-xs text-muted-foreground">Registered students</p>
         </CardContent>
       </Card>
+      
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Available Rooms</CardTitle>
+          <CardTitle className="text-sm font-medium">Room Availability</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading...</span>
-            </div>
-          ) : (
-            <>
-              <div className="text-2xl font-bold">{dashboardStats.availableRooms}</div>
-              <p className="text-xs text-muted-foreground">
-                {dashboardStats.occupancyRate} occupancy rate
-              </p>
-            </>
-          )}
+          <div className="text-2xl font-bold">{dashboardStats.availableRooms} / {dashboardStats.totalRooms}</div>
+          <p className="text-xs text-muted-foreground">
+            Available rooms ({dashboardStats.totalOccupied} spots occupied out of {dashboardStats.totalCapacity} total capacity)
+          </p>
         </CardContent>
       </Card>
+      
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Current Check-ins</CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
-            <div className="flex items-center space-x-2">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading...</span>
-            </div>
-          ) : (
-            <>
-              <div className="text-2xl font-bold">{dashboardStats.currentCheckins}</div>
-              <p className="text-xs text-muted-foreground">
-                Today's active check-ins
-              </p>
-            </>
-          )}
+          <div className="text-2xl font-bold">{dashboardStats.currentCheckins}</div>
+          <p className="text-xs text-muted-foreground">Students checked in today</p>
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Occupancy Rate</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-bold">{dashboardStats.occupancyRate}</div>
+          <p className="text-xs text-muted-foreground">Of total room capacity</p>
         </CardContent>
       </Card>
     </div>
@@ -191,8 +185,58 @@ export function AdminDashboard({ activeSection = "dashboard", setActiveSection }
   };
   
   return (
-    <div className="space-y-6">
-      {renderActiveSection()}
+    <div className="space-y-4">
+      {activeSection === "dashboard" && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardStats.totalStudents}</div>
+              <p className="text-xs text-muted-foreground">Registered students</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Room Availability</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardStats.availableRooms} / {dashboardStats.totalRooms}</div>
+              <p className="text-xs text-muted-foreground">
+                Available rooms ({dashboardStats.totalOccupied} spots occupied out of {dashboardStats.totalCapacity} total capacity)
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Current Check-ins</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardStats.currentCheckins}</div>
+              <p className="text-xs text-muted-foreground">Students checked in today</p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Occupancy Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{dashboardStats.occupancyRate}</div>
+              <p className="text-xs text-muted-foreground">Of total room capacity</p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {activeSection === "students" && <StudentsManagement />}
+      {activeSection === "rooms" && <RoomsManagement />}
+      {activeSection === "room-assignments" && <RoomAssignments />}
+      {activeSection === "attendance" && <AttendanceMonitoring />}
+      {activeSection === "mess-menu" && <MessMenuManagement />}
     </div>
   );
 }

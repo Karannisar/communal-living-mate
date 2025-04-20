@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { BookingStatus, PaymentStatus } from "@/utils/booking";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Calendar, Edit, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -48,13 +49,30 @@ const bookingFormSchema = z.object({
   room_id: z.string().min(1, { message: "Room is required." }),
   start_date: z.string().min(1, { message: "Start date is required." }),
   end_date: z.string().min(1, { message: "End date is required." }),
-  payment_status: z.enum(["pending", "paid", "failed"], { 
-    message: "Payment status must be 'pending', 'paid', or 'failed'." 
+  payment_status: z.enum([PaymentStatus.pending, PaymentStatus.complete, PaymentStatus.partial, PaymentStatus.refunded], { 
+    message: "Payment status must be 'pending', 'complete', 'partial', or 'refunded'." 
   }),
-  status: z.enum(["active", "pending", "cancelled"], { 
-    message: "Status must be 'active', 'pending', or 'cancelled'." 
+  status: z.enum([BookingStatus.APPROVED, BookingStatus.PENDING, BookingStatus.CANCELLED, BookingStatus.COMPLETED], { 
+    message: "Status must be 'approved', 'pending', or 'cancelled'." 
   }),
 });
+
+interface Booking {
+  id: string;
+  status: string;
+}
+
+interface Student {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+  bookings?: Booking[];
+}
+
+interface Error {
+  message: string;
+}
 
 export function RoomAssignments() {
   const [bookings, setBookings] = useState<any[]>([]);
@@ -74,8 +92,8 @@ export function RoomAssignments() {
       room_id: "",
       start_date: new Date().toISOString().split('T')[0],
       end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
-      payment_status: "pending",
-      status: "active",
+      payment_status: PaymentStatus.pending,
+      status: BookingStatus.PENDING,
     },
   });
 
@@ -106,17 +124,33 @@ export function RoomAssignments() {
 
   const fetchStudents = async () => {
     try {
+      // Get all students who don't have an active room booking
       const { data, error } = await supabase
         .from("users")
-        .select("id, full_name, email")
-        .eq("role", "student");
+        .select(`
+          *,
+          bookings:bookings(
+            id,
+            status
+          )
+        `)
+        .eq("role", "student")
+        .not("bookings.status", "eq", "cancelled");
 
       if (error) throw error;
-      setStudents(data || []);
-    } catch (error: any) {
+
+      // Filter out students who already have active bookings
+      const availableStudents = (data as Student[] || []).filter(student => {
+        const hasActiveBooking = student.bookings && student.bookings.length > 0;
+        return !hasActiveBooking;
+      });
+
+      setStudents(availableStudents);
+    } catch (error: unknown) {
+      const err = error as Error;
       toast({
         title: "Error fetching students",
-        description: error.message,
+        description: err.message,
         variant: "destructive",
       });
     }
@@ -124,13 +158,27 @@ export function RoomAssignments() {
 
   const fetchRooms = async () => {
     try {
+      // Get all rooms and their current bookings count
       const { data, error } = await supabase
-        .from("rooms")
-        .select("id, room_number, floor, capacity, is_available")
-        .eq("is_available", true);
+        .from('rooms')
+        .select(`
+          id,
+          room_number,
+          floor,
+          capacity,
+          price_per_month,
+          bookings:bookings(count)
+        `);
 
       if (error) throw error;
-      setRooms(data || []);
+
+      // Process rooms to determine availability
+      const processedRooms = data?.map(room => ({
+        ...room,
+        is_available: (room.bookings?.[0]?.count || 0) < room.capacity
+      })) || [];
+
+      setRooms(processedRooms);
     } catch (error: any) {
       toast({
         title: "Error fetching rooms",
@@ -183,8 +231,8 @@ export function RoomAssignments() {
       room_id: "",
       start_date: new Date().toISOString().split('T')[0],
       end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
-      payment_status: "pending",
-      status: "active",
+      payment_status: PaymentStatus.pending,
+      status: BookingStatus.APPROVED,
     });
     setIsEditing(false);
     setCurrentBooking(null);
@@ -209,14 +257,30 @@ export function RoomAssignments() {
     try {
       console.log("Submitting values:", values);
       
+      // Check room capacity before proceeding
+      const { data: roomData, error: roomError } = await supabase
+        .from('rooms')
+        .select(`
+          capacity,
+          bookings:bookings(count)
+        `)
+        .eq('id', values.room_id)
+        .single();
+
+      if (roomError) throw roomError;
+
+      const currentOccupancy = roomData.bookings?.[0]?.count || 0;
+      
+      if (currentOccupancy >= roomData.capacity) {
+        toast({
+          title: "Error",
+          description: "This room has reached its maximum capacity",
+          variant: "destructive",
+        });
+        return;
+      }
+      
       if (isEditing && currentBooking) {
-        const { error: updateOldRoomError } = await supabase
-          .from("rooms")
-          .update({ is_available: true })
-          .eq("id", currentBooking.room_id);
-          
-        if (updateOldRoomError) throw updateOldRoomError;
-        
         const { error } = await supabase
           .from("bookings")
           .update({
@@ -233,13 +297,6 @@ export function RoomAssignments() {
           console.error("Error updating booking:", error);
           throw error;
         }
-        
-        const { error: updateNewRoomError } = await supabase
-          .from("rooms")
-          .update({ is_available: false })
-          .eq("id", values.room_id);
-          
-        if (updateNewRoomError) throw updateNewRoomError;
         
         toast({
           title: "Success",
@@ -262,13 +319,6 @@ export function RoomAssignments() {
           throw error;
         }
         
-        const { error: updateRoomError } = await supabase
-          .from("rooms")
-          .update({ is_available: false })
-          .eq("id", values.room_id);
-          
-        if (updateRoomError) throw updateRoomError;
-        
         toast({
           title: "Success",
           description: "Room assigned successfully",
@@ -277,7 +327,7 @@ export function RoomAssignments() {
       
       setIsDialogOpen(false);
       fetchBookings();
-      fetchRooms(); // Refresh available rooms
+      fetchRooms();
     } catch (error: any) {
       console.error("Assignment error:", error);
       toast({
@@ -404,8 +454,9 @@ export function RoomAssignments() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={
-                      booking.payment_status === "paid" ? "success" : 
-                      booking.payment_status === "pending" ? "warning" : 
+                      booking.payment_status === PaymentStatus.complete ? "success" : 
+                      booking.payment_status === PaymentStatus.pending ? "warning" :
+                      booking.payment_status === PaymentStatus.partial ? "warning" :
                       "destructive"
                     }>
                       {booking.payment_status.charAt(0).toUpperCase() + booking.payment_status.slice(1)}
@@ -413,8 +464,9 @@ export function RoomAssignments() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={
-                      booking.status === "active" ? "success" : 
-                      booking.status === "pending" ? "warning" : 
+                      booking.status === BookingStatus.APPROVED ? "success" : 
+                      booking.status === BookingStatus.PENDING ? "warning" :
+                      booking.status === BookingStatus.COMPLETED ? "success" :
                       "destructive"
                     }>
                       {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
@@ -566,9 +618,10 @@ export function RoomAssignments() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="paid">Paid</SelectItem>
-                          <SelectItem value="failed">Failed</SelectItem>
+                          <SelectItem value={PaymentStatus.pending}>Pending</SelectItem>
+                          <SelectItem value={PaymentStatus.partial}>Partial</SelectItem>
+                          <SelectItem value={PaymentStatus.complete}>Complete</SelectItem>
+                          <SelectItem value={PaymentStatus.refunded}>Refunded</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -592,9 +645,10 @@ export function RoomAssignments() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value={BookingStatus.PENDING}>Pending</SelectItem>
+                          <SelectItem value={BookingStatus.APPROVED}>Approved</SelectItem>
+                          <SelectItem value={BookingStatus.CANCELLED}>Cancelled</SelectItem>
+                          <SelectItem value={BookingStatus.COMPLETED}>Completed</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />

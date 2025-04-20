@@ -49,7 +49,7 @@ async function fetchDatabaseContext(userMessage: string) {
         )
       `)
       .eq("user_id", user.id)
-      .eq("status", "active")
+      .eq("status", "approved")
       .single();
     
     if (bookingData?.rooms) {

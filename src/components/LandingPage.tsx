@@ -69,62 +69,70 @@ export const LandingPage = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.6 }}
-            className="relative"
+            className="relative space-y-6"
           >
-            <div className="bg-[#1A1A1F] p-6 rounded-xl shadow-xl">
-              <div className="space-y-6">
-                <div className="bg-[#252530] rounded-lg p-4">
-                  <h3 className="text-xl font-semibold text-white mb-2">Deluxe Single Room</h3>
-                  <div className="flex items-center space-x-2 text-gray-400">
-                    <span>📍</span>
-                    <span>4th Floor</span>
-                  </div>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <div className="flex text-yellow-400">
-                      {'★'.repeat(5)}
-                    </div>
-                    <span className="text-white">5.0</span>
-                    <span className="text-gray-400">(28 reviews)</span>
-                  </div>
-                  <div className="mt-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="text-sm text-gray-400">Monthly rent</div>
-                        <div className="text-2xl font-bold text-white">$899<span className="text-sm text-gray-400">/month</span></div>
-                      </div>
-                      <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
-                        Book Now
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-[#252530] rounded-lg p-4">
-                  <h3 className="text-xl font-semibold text-white mb-2">Premium Double Room</h3>
-                  <div className="flex items-center space-x-2 text-gray-400">
-                    <span>📍</span>
-                    <span>3rd Floor</span>
-                  </div>
-                  <div className="flex items-center space-x-2 mt-2">
-                    <div className="flex text-yellow-400">
-                      {'★'.repeat(5)}
-                    </div>
-                    <span className="text-white">4.9</span>
-                    <span className="text-gray-400">(42 reviews)</span>
-                  </div>
-                  <div className="mt-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="text-sm text-gray-400">Monthly rent</div>
-                        <div className="text-2xl font-bold text-white">$699<span className="text-sm text-gray-400">/month</span></div>
-                      </div>
-                      <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
-                        Book Now
-                      </button>
-                    </div>
-                  </div>
+            {/* Main Room Image */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.6 }}
+              className="relative rounded-2xl overflow-hidden shadow-2xl"
+            >
+              <img
+                src="https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2340&q=80"
+                alt="Modern Student Room"
+                className="w-full h-[300px] object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-transparent to-transparent" />
+              <div className="absolute bottom-4 left-4 right-4">
+                <div className="bg-[#1A1A1F]/90 p-4 rounded-lg backdrop-blur-sm">
+                  <h3 className="text-lg font-semibold text-white">Deluxe Single Room</h3>
+                  <p className="text-gray-400">Starting from Rs.10,000/month</p>
                 </div>
               </div>
+            </motion.div>
+
+            {/* Feature Images Grid */}
+            <div className="grid grid-cols-3 gap-4">
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2, duration: 0.6 }}
+                className="relative rounded-xl overflow-hidden"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1574362848149-11496d93a7c7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+                  alt="Study Area"
+                  className="w-full h-[120px] object-cover"
+                />
+                <div className="absolute inset-0 bg-indigo-600/20 hover:bg-indigo-600/30 transition" />
+              </motion.div>
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.3, duration: 0.6 }}
+                className="relative rounded-xl overflow-hidden"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1571624436279-b272aff752b5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+                  alt="Community Space"
+                  className="w-full h-[120px] object-cover"
+                />
+                <div className="absolute inset-0 bg-indigo-600/20 hover:bg-indigo-600/30 transition" />
+              </motion.div>
+              <motion.div
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4, duration: 0.6 }}
+                className="relative rounded-xl overflow-hidden"
+              >
+                <img
+                  src="https://images.unsplash.com/photo-1574362848149-11496d93a7c7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+                  alt="Fitness Center"
+                  className="w-full h-[120px] object-cover"
+                />
+                <div className="absolute inset-0 bg-indigo-600/20 hover:bg-indigo-600/30 transition" />
+              </motion.div>
             </div>
           </motion.div>
         </div>

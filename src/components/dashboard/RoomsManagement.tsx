@@ -1,19 +1,7 @@
-
-import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +18,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -37,12 +26,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { useForm } from "react-hook-form";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Edit, Plus, RefreshCw, Search, Trash2, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { Plus, Edit, Trash2, Search, RefreshCw, Users } from "lucide-react";
 
 // Define schema for room form
 const roomFormSchema = z.object({
@@ -90,13 +89,35 @@ export function RoomsManagement() {
   const fetchRooms = async () => {
     setIsLoading(true);
     try {
+      // Get all rooms with their current bookings and occupant information
       const { data, error } = await supabase
         .from("rooms")
-        .select("*")
+        .select(`
+          *,
+          bookings:bookings(
+            id,
+            user_id,
+            users:user_id (
+              full_name
+            )
+          )
+        `)
         .order("room_number", { ascending: true });
 
       if (error) throw error;
-      setRooms(data || []);
+
+      // Process rooms to determine availability and occupancy
+      const processedRooms = (data || []).map(room => {
+        const currentOccupants = room.bookings?.filter(booking => booking.users?.full_name) || [];
+        return {
+          ...room,
+          current_occupancy: currentOccupants.length,
+          occupants: currentOccupants.map(booking => booking.users.full_name),
+          is_available: currentOccupants.length < room.capacity
+        };
+      });
+
+      setRooms(processedRooms);
     } catch (error: any) {
       toast({
         title: "Error fetching rooms",
@@ -285,6 +306,7 @@ export function RoomsManagement() {
               <TableHead>Capacity</TableHead>
               <TableHead>Price/Month</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Current Occupants</TableHead>
               <TableHead>Amenities</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
@@ -312,8 +334,21 @@ export function RoomsManagement() {
                   <TableCell>${room.price_per_month}</TableCell>
                   <TableCell>
                     <Badge variant={room.is_available ? "success" : "destructive"}>
-                      {room.is_available ? "Available" : "Occupied"}
+                      {room.is_available ? "Available" : `Occupied (${room.current_occupancy}/${room.capacity})`}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col gap-1">
+                      {room.occupants && room.occupants.length > 0 ? (
+                        room.occupants.map((name: string, index: number) => (
+                          <Badge key={index} variant="outline" className="text-xs">
+                            {name}
+                          </Badge>
+                        ))
+                      ) : (
+                        <span className="text-muted-foreground text-xs">No occupants</span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
