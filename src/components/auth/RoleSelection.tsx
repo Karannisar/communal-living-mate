@@ -10,9 +10,7 @@ import {
 import { 
   Building2, 
   BedDouble, 
-  ShieldAlert, 
-  UtensilsCrossed,
-  Check 
+  ShieldAlert
 } from "lucide-react";
 
 const roles = [
@@ -39,23 +37,20 @@ const roles = [
     icon: ShieldAlert,
     theme: "theme-security",
     color: "bg-security/10 text-security-dark border-security hover:bg-security/20"
-  },
-  {
-    id: "mess",
-    title: "Mess Staff",
-    description: "Manage mess menus",
-    icon: UtensilsCrossed,
-    theme: "theme-mess",
-    color: "bg-mess/10 text-mess-dark border-mess hover:bg-mess/20"
   }
 ];
 
 interface RoleSelectionProps {
   onRoleSelect: (role: string, theme: string) => void;
+  hideStaffRoles?: boolean;
 }
 
-export function RoleSelection({ onRoleSelect }: RoleSelectionProps) {
+export function RoleSelection({ onRoleSelect, hideStaffRoles = false }: RoleSelectionProps) {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+
+  const displayRoles = hideStaffRoles 
+    ? roles.filter(role => role.id === "student")
+    : roles;
 
   const handleRoleSelect = (roleId: string, theme: string) => {
     setSelectedRole(roleId);
@@ -72,7 +67,7 @@ export function RoleSelection({ onRoleSelect }: RoleSelectionProps) {
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {roles.map((role) => (
+          {displayRoles.map((role) => (
             <div
               key={role.id}
               className={`
@@ -90,11 +85,6 @@ export function RoleSelection({ onRoleSelect }: RoleSelectionProps) {
                   <h3 className="font-medium text-lg">{role.title}</h3>
                   <p className="text-sm opacity-80">{role.description}</p>
                 </div>
-                {selectedRole === role.id && (
-                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground p-1 rounded-full animate-scale-in">
-                    <Check className="h-4 w-4" />
-                  </div>
-                )}
               </div>
             </div>
           ))}

@@ -1,7 +1,16 @@
 import { useState } from "react";
-import { z } from "zod";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -11,124 +20,99 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { RoleSelection } from "./RoleSelection";
 
-const signupSchema = z.object({
-  fullName: z.string().min(3, "Full name must be at least 3 characters"),
-  email: z.string().email("Please enter a valid email address"),
+const formSchema = z.object({
+  email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords must match",
+  path: ["confirmPassword"],
 });
 
-type SignupValues = z.infer<typeof signupSchema>;
+type FormData = z.infer<typeof formSchema>;
 
 interface SignupFormProps {
-  onSignup?: () => void;
+  onSignup: () => void;
   onLoginClick: () => void;
 }
 
 export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const { toast } = useToast();
-
-  const form = useForm<SignupValues>({
-    resolver: zodResolver(signupSchema),
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
-      fullName: "",
       email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
-  const handleSubmit = async (values: SignupValues) => {
+  const onSubmit = async (data: FormData) => {
+    if (!selectedRole) {
+      toast({
+        title: "Role Required",
+        description: "Please select a role to continue",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      setLoading(true);
-      
-      // Register user with Supabase Auth - no need for email confirmation
-      const { data, error } = await supabase.auth.signUp({
-        email: values.email,
-        password: values.password,
+      const { error } = await supabase.auth.signUp({
+        email: data.email,
+        password: data.password,
         options: {
           data: {
-            full_name: values.fullName,
-          }
-        }
+            role: selectedRole,
+          },
+        },
       });
-      
-      if (error) {
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      // Create a user record in the users table
-      if (data.user) {
-        const { error: insertError } = await supabase
-          .from('users')
-          .insert({
-            id: data.user.id,
-            email: values.email,
-            full_name: values.fullName,
-            role: 'student' // Default role for all new users
-          });
-          
-        if (insertError) {
-          console.error("Error inserting user data:", insertError);
-          // Don't show error to user, as the trigger might handle this
-        }
-      }
-      
+
+      if (error) throw error;
+
       toast({
         title: "Success",
-        description: "Your account has been created. Please sign in.",
+        description: "Please check your email to verify your account",
       });
-      
-      if (onSignup) onSignup();
+      onSignup();
     } catch (error: any) {
-      console.error(error);
       toast({
         title: "Error",
-        description: "An unexpected error occurred. Please try again.",
+        description: error.message,
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
+  const handleRoleSelect = (role: string) => {
+    setSelectedRole(role);
+  };
+
   return (
-    <Card className="w-full max-w-md mx-auto shadow-xl animate-slide-up">
+    <Card className="w-full">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center">
-          Create your account
-        </CardTitle>
+        <CardTitle>Create an Account</CardTitle>
+        <CardDescription>
+          Sign up to get started with DormMate
+        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-6">
+        <RoleSelection 
+          onRoleSelect={(role) => handleRoleSelect(role)} 
+          hideStaffRoles={true}
+        />
+        
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="John Doe"
-                      {...field}
-                      className="hover-lift"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="email"
@@ -136,12 +120,7 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
                 <FormItem>
                   <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="your.email@example.com"
-                      type="email"
-                      {...field}
-                      className="hover-lift"
-                    />
+                    <Input placeholder="mail@example.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -154,42 +133,50 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
                 <FormItem>
                   <FormLabel>Password</FormLabel>
                   <FormControl>
+                    <Input type="password" placeholder="Password" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="confirmPassword"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Confirm Password</FormLabel>
+                  <FormControl>
                     <Input
-                      placeholder="••••••••"
                       type="password"
+                      placeholder="Confirm Password"
                       {...field}
-                      className="hover-lift"
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating Account...
-                </>
-              ) : (
-                "Sign Up"
-              )}
-            </Button>
-            <div className="text-center mt-4">
-              <p className="text-sm text-muted-foreground">
-                Already have an account?{" "}
-                <Button 
-                  variant="link" 
-                  className="p-0 h-auto" 
-                  onClick={onLoginClick}
-                >
-                  Sign In
-                </Button>
-              </p>
-            </div>
           </form>
         </Form>
       </CardContent>
+      <CardFooter className="flex flex-col space-y-4">
+        <Button 
+          type="submit" 
+          className="w-full" 
+          disabled={isLoading}
+          onClick={form.handleSubmit(onSubmit)}
+        >
+          {isLoading ? "Creating account..." : "Sign Up"}
+        </Button>
+        <Button
+          variant="ghost"
+          className="w-full"
+          onClick={onLoginClick}
+          disabled={isLoading}
+        >
+          Already have an account? Log in
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
