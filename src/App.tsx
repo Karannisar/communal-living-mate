@@ -5,19 +5,15 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Suspense, lazy, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { ThemeProvider } from "@/components/ThemeProvider";
-import LandingPage from "./pages/LandingPage";
+import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
+import { supabase } from "@/integrations/supabase/client";
 
 const AdminPage = lazy(() => import("./pages/dashboard/Admin"));
 const StudentPage = lazy(() => import("./pages/dashboard/Student"));
 const SecurityPage = lazy(() => import("./pages/dashboard/Security"));
 const MessPage = lazy(() => import("./pages/dashboard/Mess"));
-const HostelsPage = lazy(() => import("./pages/Hostels"));
-const HostelRegisterPage = lazy(() => import("./pages/hostel/Register"));
-const HostelAdminPage = lazy(() => import("./pages/dashboard/Hostel"));
 
 const queryClient = new QueryClient();
 
@@ -41,62 +37,40 @@ const App = () => {
   }, []);
   
   return (
-    <ThemeProvider defaultTheme="dark">
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<LandingPage />} />
-              <Route path="/auth" element={<Auth />} />
-
-              {/* Hostel related routes */}
-              <Route path="/hostels" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <HostelsPage />
-                </Suspense>
-              } />
-              <Route path="/hostel/register" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <HostelRegisterPage />
-                </Suspense>
-              } />
-              <Route path="/hostel" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <HostelAdminPage />
-                </Suspense>
-              } />
-
-              {/* Dashboard routes */}
-              <Route path="/admin" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <AdminPage />
-                </Suspense>
-              } />
-              <Route path="/student" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <StudentPage />
-                </Suspense>
-              } />
-              <Route path="/security" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <SecurityPage />
-                </Suspense>
-              } />
-              <Route path="/mess" element={
-                <Suspense fallback={<div>Loading...</div>}>
-                  <MessPage />
-                </Suspense>
-              } />
-              
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/admin" element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <AdminPage />
+              </Suspense>
+            } />
+            <Route path="/student" element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <StudentPage />
+              </Suspense>
+            } />
+            <Route path="/security" element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <SecurityPage />
+              </Suspense>
+            } />
+            <Route path="/mess" element={
+              <Suspense fallback={<div>Loading...</div>}>
+                <MessPage />
+              </Suspense>
+            } />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   );
 };
 

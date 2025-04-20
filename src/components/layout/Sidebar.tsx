@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Building,
   Building2,
   Home,
   Users,
@@ -18,10 +17,6 @@ import {
   X,
   LogOut,
   UserCheck,
-  Landmark,
-  CreditCard,
-  MessageSquare,
-  BarChart3,
 } from "lucide-react";
 
 interface NavItemProps {
@@ -66,8 +61,6 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
         return Building2;
       case "student":
         return BedDouble;
-      case "hostel":
-        return Landmark;
       default:
         return Building2;
     }
@@ -85,37 +78,9 @@ export function Sidebar({ role, onNavigate, activeItem = "dashboard" }: SidebarP
   
   const studentNavItems = [
     { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "profile", label: "My Profile", icon: UserCheck },
-    { id: "bookings", label: "My Bookings", icon: BedDouble },
-    { id: "hostels", label: "Browse Hostels", icon: Building },
   ];
   
-  const hostelNavItems = [
-    { id: "dashboard", label: "Dashboard", icon: Home },
-    { id: "rooms", label: "Rooms", icon: BedDouble },
-    { id: "bookings", label: "Bookings", icon: Calendar },
-    { id: "students", label: "Students", icon: Users },
-    { id: "finances", label: "Finances", icon: CreditCard },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "messages", label: "Messages", icon: MessageSquare },
-    { id: "settings", label: "Settings", icon: Settings },
-  ];
-  
-  let navItems;
-  
-  switch (role) {
-    case "admin":
-      navItems = adminNavItems;
-      break;
-    case "student":
-      navItems = studentNavItems;
-      break;
-    case "hostel":
-      navItems = hostelNavItems;
-      break;
-    default:
-      navItems = adminNavItems;
-  }
+  const navItems = role === "admin" ? adminNavItems : studentNavItems;
 
   const handleItemClick = (itemId: string) => {
     setCurrentActiveItem(itemId);

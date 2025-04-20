@@ -143,109 +143,6 @@ export type Database = {
           },
         ]
       }
-      hostel_ratings: {
-        Row: {
-          comment: string | null
-          created_at: string | null
-          hostel_id: string | null
-          id: string
-          rating: number | null
-          user_id: string | null
-        }
-        Insert: {
-          comment?: string | null
-          created_at?: string | null
-          hostel_id?: string | null
-          id?: string
-          rating?: number | null
-          user_id?: string | null
-        }
-        Update: {
-          comment?: string | null
-          created_at?: string | null
-          hostel_id?: string | null
-          id?: string
-          rating?: number | null
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "hostel_ratings_hostel_id_fkey"
-            columns: ["hostel_id"]
-            isOneToOne: false
-            referencedRelation: "hostels"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      hostels: {
-        Row: {
-          address: string
-          average_rating: number | null
-          city: string
-          commission_rate: number
-          created_at: string | null
-          description: string | null
-          email: string
-          id: string
-          is_approved: boolean | null
-          is_verified: boolean | null
-          location_tier: string
-          name: string
-          phone: string
-          photos: string[] | null
-          size: string
-          total_ratings: number | null
-          updated_at: string | null
-        }
-        Insert: {
-          address: string
-          average_rating?: number | null
-          city: string
-          commission_rate: number
-          created_at?: string | null
-          description?: string | null
-          email: string
-          id: string
-          is_approved?: boolean | null
-          is_verified?: boolean | null
-          location_tier: string
-          name: string
-          phone: string
-          photos?: string[] | null
-          size: string
-          total_ratings?: number | null
-          updated_at?: string | null
-        }
-        Update: {
-          address?: string
-          average_rating?: number | null
-          city?: string
-          commission_rate?: number
-          created_at?: string | null
-          description?: string | null
-          email?: string
-          id?: string
-          is_approved?: boolean | null
-          is_verified?: boolean | null
-          location_tier?: string
-          name?: string
-          phone?: string
-          photos?: string[] | null
-          size?: string
-          total_ratings?: number | null
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "hostels_id_fkey1"
-            columns: ["id"]
-            isOneToOne: true
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       mess_menu: {
         Row: {
           created_at: string
@@ -348,10 +245,6 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
-      get_room_active_bookings: {
-        Args: { room_id_param: string }
-        Returns: number
-      }
       hash_password: {
         Args: { password: string }
         Returns: string
@@ -362,7 +255,7 @@ export type Database = {
       }
     }
     Enums: {
-      user_role: "admin" | "hostel" | "student"
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -477,8 +370,6 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {
-      user_role: ["admin", "hostel", "student"],
-    },
+    Enums: {},
   },
 } as const

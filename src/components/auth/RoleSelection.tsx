@@ -10,9 +10,9 @@ import {
 import { 
   Building2, 
   BedDouble, 
-  ShieldAlert,
-  UserRound,
-  GraduationCap
+  ShieldAlert, 
+  UtensilsCrossed,
+  Check 
 } from "lucide-react";
 
 const roles = [
@@ -27,8 +27,8 @@ const roles = [
   {
     id: "student",
     title: "Student",
-    description: "Find and book accommodations",
-    icon: GraduationCap,
+    description: "Access your room & mess details",
+    icon: BedDouble,
     theme: "theme-student",
     color: "bg-student/10 text-student-dark border-student hover:bg-student/20"
   },
@@ -41,26 +41,21 @@ const roles = [
     color: "bg-security/10 text-security-dark border-security hover:bg-security/20"
   },
   {
-    id: "hostel",
-    title: "Hostel Owner",
-    description: "Manage your property listings",
-    icon: Building2,
-    theme: "theme-hostel",
-    color: "bg-primary/10 text-primary-dark border-primary hover:bg-primary/20"
+    id: "mess",
+    title: "Mess Staff",
+    description: "Manage mess menus",
+    icon: UtensilsCrossed,
+    theme: "theme-mess",
+    color: "bg-mess/10 text-mess-dark border-mess hover:bg-mess/20"
   }
 ];
 
 interface RoleSelectionProps {
   onRoleSelect: (role: string, theme: string) => void;
-  hideStaffRoles?: boolean;
 }
 
-export function RoleSelection({ onRoleSelect, hideStaffRoles = false }: RoleSelectionProps) {
+export function RoleSelection({ onRoleSelect }: RoleSelectionProps) {
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
-
-  const displayRoles = hideStaffRoles 
-    ? roles.filter(role => role.id === "student")
-    : roles;
 
   const handleRoleSelect = (roleId: string, theme: string) => {
     setSelectedRole(roleId);
@@ -77,7 +72,7 @@ export function RoleSelection({ onRoleSelect, hideStaffRoles = false }: RoleSele
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {displayRoles.map((role) => (
+          {roles.map((role) => (
             <div
               key={role.id}
               className={`
@@ -95,6 +90,11 @@ export function RoleSelection({ onRoleSelect, hideStaffRoles = false }: RoleSele
                   <h3 className="font-medium text-lg">{role.title}</h3>
                   <p className="text-sm opacity-80">{role.description}</p>
                 </div>
+                {selectedRole === role.id && (
+                  <div className="absolute top-2 right-2 bg-primary text-primary-foreground p-1 rounded-full animate-scale-in">
+                    <Check className="h-4 w-4" />
+                  </div>
+                )}
               </div>
             </div>
           ))}

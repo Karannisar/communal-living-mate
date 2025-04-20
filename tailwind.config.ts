@@ -1,4 +1,3 @@
-
 import type { Config } from "tailwindcss";
 
 export default {
@@ -72,12 +71,6 @@ export default {
 					DEFAULT: '#FDE1D3',
 					dark: '#F1A683',
 					foreground: '#333333'
-				},
-				hostel: {
-					DEFAULT: '#4A00E0',
-					dark: '#3300B3',
-					light: '#7F45EA',
-					foreground: '#ffffff'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
