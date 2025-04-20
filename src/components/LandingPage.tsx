@@ -1,147 +1,136 @@
+import { motion } from 'framer-motion';
+import React from 'react';
+import { Link } from 'react-router-dom';
 
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { BedDouble, CheckCircle, ChevronRight, Clock, MapPin, ShieldCheck } from "lucide-react";
-import { Link } from "react-router-dom";
-
-export function LandingPage() {
+export const LandingPage = () => {
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      {/* Hero Section */}
-      <section className="relative py-20 md:py-32 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-primary/5 -z-10"></div>
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-            <div className="flex flex-col space-y-4 animate-fade-in">
-              <h1 className="text-4xl md:text-6xl font-bold tracking-tighter">
-                Your Perfect Student Home Awaits
-              </h1>
-              <p className="text-xl text-muted-foreground md:max-w-[500px]">
-                Safe, comfortable, and affordable dormitory living for students with all the amenities you need.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 mt-4">
-                <Link to="/auth">
-                  <Button size="lg" className="gap-2">
-                    Book Now <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </Link>
-                <Link to="/auth">
-                  <Button size="lg" variant="outline">
-                    Learn More
-                  </Button>
-                </Link>
+    <div className="min-h-screen bg-[#0A0A0F] text-gray-100">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        <nav className="flex justify-between items-center mb-16">
+          <div className="flex items-center space-x-2">
+            <div className="bg-indigo-600 text-white p-2 rounded-lg">DM</div>
+            <span className="text-white text-xl font-bold">DormMate</span>
+          </div>
+          <div className="flex items-center space-x-6">
+            <Link to="/rooms" className="text-gray-400 hover:text-white transition">Rooms</Link>
+            <Link to="/amenities" className="text-gray-400 hover:text-white transition">Amenities</Link>
+            <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+              Book Now
+            </button>
+            <a href="/auth"><button className="border border-indigo-600 text-indigo-400 px-4 py-2 rounded-lg hover:bg-indigo-600 hover:text-white transition">
+              Login
+            </button></a>
+          </div>
+        </nav>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <div className="text-indigo-400 font-medium mb-4 flex items-center">
+              <span className="mr-2">⭐</span>
+              Premium Student Living
+            </div>
+            <h1 className="text-5xl font-bold text-white mb-6">
+              Your Perfect Room at{' '}
+              <span className="text-indigo-400">University Heights</span>
+            </h1>
+            <p className="text-gray-400 text-lg mb-8">
+              Experience luxury student living in the heart of Boston. Modern rooms, 
+              state-of-the-art amenities, and a vibrant community await you.
+            </p>
+            <div className="flex space-x-4">
+              <button className="bg-indigo-600 text-white px-8 py-3 rounded-lg hover:bg-indigo-700 transition">
+                View Rooms
+              </button>
+              <button className="bg-[#1A1A1F] text-white px-8 py-3 rounded-lg hover:bg-[#2A2A2F] transition">
+                Take a Tour
+              </button>
+            </div>
+            <div className="grid grid-cols-3 gap-8 mt-12">
+              <div className="flex items-center space-x-2">
+                <div className="text-indigo-400">✓</div>
+                <div className="text-gray-400">24/7 Security</div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="text-indigo-400">✓</div>
+                <div className="text-gray-400">High-Speed WiFi</div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="text-indigo-400">✓</div>
+                <div className="text-gray-400">Fitness Center</div>
               </div>
             </div>
-            <div className="relative h-[300px] md:h-[400px] rounded-lg overflow-hidden shadow-xl animate-slide-up">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/40 to-accent/20 mix-blend-overlay z-10"></div>
-              <img 
-                src="https://images.unsplash.com/photo-1555854877-bab0e564b8d5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=2000&q=80" 
-                alt="Dormitory Exterior" 
-                className="object-cover w-full h-full"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
+          </motion.div>
 
-      {/* Features Section */}
-      <section className="py-16 bg-muted/50">
-        <div className="container px-4 md:px-6 mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Why Choose Our Dormitory?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="hover-scale">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="p-3 rounded-full bg-primary/10">
-                    <BedDouble className="h-8 w-8 text-primary" />
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6 }}
+            className="relative"
+          >
+            <div className="bg-[#1A1A1F] p-6 rounded-xl shadow-xl">
+              <div className="space-y-6">
+                <div className="bg-[#252530] rounded-lg p-4">
+                  <h3 className="text-xl font-semibold text-white mb-2">Deluxe Single Room</h3>
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <span>📍</span>
+                    <span>4th Floor</span>
                   </div>
-                  <h3 className="text-xl font-bold">Comfortable Rooms</h3>
-                  <p className="text-muted-foreground">
-                    Well-furnished rooms with all essential amenities for a comfortable stay.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="hover-scale">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="p-3 rounded-full bg-primary/10">
-                    <ShieldCheck className="h-8 w-8 text-primary" />
+                  <div className="flex items-center space-x-2 mt-2">
+                    <div className="flex text-yellow-400">
+                      {'★'.repeat(5)}
+                    </div>
+                    <span className="text-white">5.0</span>
+                    <span className="text-gray-400">(28 reviews)</span>
                   </div>
-                  <h3 className="text-xl font-bold">24/7 Security</h3>
-                  <p className="text-muted-foreground">
-                    Round-the-clock security measures to ensure your safety.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="hover-scale">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center space-y-4">
-                  <div className="p-3 rounded-full bg-primary/10">
-                    <MapPin className="h-8 w-8 text-primary" />
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="text-sm text-gray-400">Monthly rent</div>
+                        <div className="text-2xl font-bold text-white">$899<span className="text-sm text-gray-400">/month</span></div>
+                      </div>
+                      <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                        Book Now
+                      </button>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-bold">Prime Location</h3>
-                  <p className="text-muted-foreground">
-                    Conveniently located near universities, shops, and transportation.
-                  </p>
                 </div>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
 
-      {/* Amenities Section */}
-      <section className="py-16">
-        <div className="container px-4 md:px-6 mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">Amenities & Services</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              "High-Speed WiFi", "AC Rooms", "Clean Bathrooms", "Study Areas",
-              "Laundry Service", "Mess Facility", "Gym Access", "Recreation Room"
-            ].map((amenity, index) => (
-              <div key={index} className="flex items-center gap-3 p-4 border rounded-lg hover:bg-accent hover:border-accent transition-colors">
-                <CheckCircle className="h-5 w-5 text-primary shrink-0" />
-                <span>{amenity}</span>
+                <div className="bg-[#252530] rounded-lg p-4">
+                  <h3 className="text-xl font-semibold text-white mb-2">Premium Double Room</h3>
+                  <div className="flex items-center space-x-2 text-gray-400">
+                    <span>📍</span>
+                    <span>3rd Floor</span>
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <div className="flex text-yellow-400">
+                      {'★'.repeat(5)}
+                    </div>
+                    <span className="text-white">4.9</span>
+                    <span className="text-gray-400">(42 reviews)</span>
+                  </div>
+                  <div className="mt-4">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <div className="text-sm text-gray-400">Monthly rent</div>
+                        <div className="text-2xl font-bold text-white">$699<span className="text-sm text-gray-400">/month</span></div>
+                      </div>
+                      <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition">
+                        Book Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Call to Action */}
-      <section className="py-16 bg-primary/5">
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl font-bold">Ready to Book Your Stay?</h2>
-            <p className="text-muted-foreground max-w-lg mx-auto">
-              Sign up now to book your room and join our community of students.
-            </p>
-            <Link to="/auth">
-              <Button size="lg" className="mt-4">
-                Sign Up & Book Now
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 border-t">
-        <div className="container px-4 md:px-6 mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-muted-foreground text-sm">
-              © 2025 DormMate. All rights reserved.
-            </p>
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm">Terms</Button>
-              <Button variant="ghost" size="sm">Privacy</Button>
-              <Button variant="ghost" size="sm">Contact</Button>
             </div>
-          </div>
+          </motion.div>
         </div>
-      </footer>
+      </div>
     </div>
   );
-}
+};
+
+export default LandingPage;
