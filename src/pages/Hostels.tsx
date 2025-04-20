@@ -1,8 +1,7 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { MainNavbar } from "@/components/layout/MainNavbar";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { 
   Building, 
@@ -54,8 +53,8 @@ interface Hostel {
 }
 
 const HostelsPage = () => {
-  const [hostels, setHostels] = useState<Hostel[]>([]);
-  const [filteredHostels, setFilteredHostels] = useState<Hostel[]>([]);
+  const [hostels, setHostels] = useState<any[]>([]);
+  const [filteredHostels, setFilteredHostels] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<string>("all");
@@ -68,99 +67,16 @@ const HostelsPage = () => {
       try {
         setIsLoading(true);
         
-        // In a real app, this would fetch from the hostels table
-        // For now, we'll create some sample data
-        const mockHostels: Hostel[] = [
-          {
-            id: "1",
-            name: "University Heights Hostel",
-            size: "large",
-            location_tier: "tier_1",
-            address: "123 University Ave",
-            city: "Boston",
-            description: "A premier hostel located minutes from major universities. Featuring modern amenities, study spaces, and a vibrant community.",
-            price_range_min: 800,
-            price_range_max: 1500,
-            is_verified: true,
-            amenities: ["WiFi", "Gym", "Laundry", "Study Rooms", "Cafeteria"],
-            rating: 4.7,
-            total_reviews: 128,
-            images: ["/placeholder.svg"],
-            created_at: new Date().toISOString()
-          },
-          {
-            id: "2",
-            name: "Student Square Residences",
-            size: "medium",
-            location_tier: "tier_2",
-            address: "456 College St",
-            city: "New York",
-            description: "Affordable student housing with all essential amenities. Conveniently located near public transportation and shopping centers.",
-            price_range_min: 600,
-            price_range_max: 1100,
-            is_verified: true,
-            amenities: ["WiFi", "Laundry", "Common Room", "Security"],
-            rating: 4.2,
-            total_reviews: 95,
-            images: ["/placeholder.svg"],
-            created_at: new Date().toISOString()
-          },
-          {
-            id: "3",
-            name: "Campus Corner Hostel",
-            size: "small",
-            location_tier: "tier_3",
-            address: "789 Student Lane",
-            city: "Chicago",
-            description: "A cozy hostel offering a homely environment for students. Close to multiple educational institutions.",
-            price_range_min: 450,
-            price_range_max: 800,
-            is_verified: true,
-            amenities: ["WiFi", "Shared Kitchen", "Parking"],
-            rating: 3.9,
-            total_reviews: 62,
-            images: ["/placeholder.svg"],
-            created_at: new Date().toISOString()
-          },
-          {
-            id: "4",
-            name: "Scholars Inn",
-            size: "medium",
-            location_tier: "tier_1",
-            address: "101 Academic Blvd",
-            city: "San Francisco",
-            description: "Luxury student accommodation with premium facilities. Features private rooms, gourmet dining options, and recreational areas.",
-            price_range_min: 1000,
-            price_range_max: 1800,
-            is_verified: true,
-            amenities: ["WiFi", "Gym", "Pool", "Private Bathrooms", "Restaurant", "Study Rooms"],
-            rating: 4.8,
-            total_reviews: 156,
-            images: ["/placeholder.svg"],
-            created_at: new Date().toISOString()
-          },
-          {
-            id: "5",
-            name: "Budget Student Living",
-            size: "large",
-            location_tier: "tier_3",
-            address: "202 Economy St",
-            city: "Austin",
-            description: "No-frills accommodation for students on a budget. Clean, simple, and functional living spaces.",
-            price_range_min: 350,
-            price_range_max: 650,
-            is_verified: true,
-            amenities: ["WiFi", "Shared Bathrooms", "Common Kitchen"],
-            rating: 3.5,
-            total_reviews: 87,
-            images: ["/placeholder.svg"],
-            created_at: new Date().toISOString()
-          }
-        ];
+        const { data, error } = await supabase
+          .from('hostels')
+          .select('*')
+          .eq('is_approved', true);
         
-        setHostels(mockHostels);
-        setFilteredHostels(mockHostels);
-      } catch (error) {
+        if (error) throw error;
+        
+        setHostels(data || []);
+        setFilteredHostels(data || []);
+      } catch (error: any) {
         console.error("Error fetching hostels:", error);
         toast({
           title: "Error",

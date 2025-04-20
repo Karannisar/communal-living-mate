@@ -148,51 +148,62 @@ export type Database = {
           address: string
           city: string
           commission_rate: number
-          created_at: string
-          description: string
+          created_at: string | null
+          description: string | null
           email: string
           id: string
-          is_verified: boolean
+          is_approved: boolean | null
+          is_verified: boolean | null
           location_tier: string
           name: string
           phone: string
           photos: string[] | null
           size: string
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
           address: string
           city: string
-          commission_rate?: number
-          created_at?: string
-          description: string
+          commission_rate: number
+          created_at?: string | null
+          description?: string | null
           email: string
           id: string
-          is_verified?: boolean
+          is_approved?: boolean | null
+          is_verified?: boolean | null
           location_tier: string
           name: string
           phone: string
           photos?: string[] | null
           size: string
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
           address?: string
           city?: string
           commission_rate?: number
-          created_at?: string
-          description?: string
+          created_at?: string | null
+          description?: string | null
           email?: string
           id?: string
-          is_verified?: boolean
+          is_approved?: boolean | null
+          is_verified?: boolean | null
           location_tier?: string
           name?: string
           phone?: string
           photos?: string[] | null
           size?: string
-          updated_at?: string
+          updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "hostels_id_fkey1"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       mess_menu: {
         Row: {
@@ -310,7 +321,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "hostel" | "student"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -425,6 +436,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "hostel", "student"],
+    },
   },
 } as const
