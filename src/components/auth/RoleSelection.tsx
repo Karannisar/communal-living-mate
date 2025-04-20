@@ -10,7 +10,9 @@ import {
 import { 
   Building2, 
   BedDouble, 
-  ShieldAlert
+  ShieldAlert,
+  UserRound,
+  GraduationCap
 } from "lucide-react";
 
 const roles = [
@@ -25,8 +27,8 @@ const roles = [
   {
     id: "student",
     title: "Student",
-    description: "Access your room & mess details",
-    icon: BedDouble,
+    description: "Find and book accommodations",
+    icon: GraduationCap,
     theme: "theme-student",
     color: "bg-student/10 text-student-dark border-student hover:bg-student/20"
   },
@@ -37,6 +39,14 @@ const roles = [
     icon: ShieldAlert,
     theme: "theme-security",
     color: "bg-security/10 text-security-dark border-security hover:bg-security/20"
+  },
+  {
+    id: "hostel",
+    title: "Hostel Owner",
+    description: "Manage your property listings",
+    icon: Building2,
+    theme: "theme-hostel",
+    color: "bg-primary/10 text-primary-dark border-primary hover:bg-primary/20"
   }
 ];
 

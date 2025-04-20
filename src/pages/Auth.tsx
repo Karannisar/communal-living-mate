@@ -53,6 +53,9 @@ const Auth = () => {
       case "student":
         navigate("/student");
         break;
+      case "security":
+        navigate("/security");
+        break;
       case "hostel":
         navigate("/hostel");
         break;

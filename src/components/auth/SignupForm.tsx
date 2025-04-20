@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -108,7 +109,7 @@ export function SignupForm({ onSignup, onLoginClick }: SignupFormProps) {
       <CardContent className="space-y-6">
         <RoleSelection 
           onRoleSelect={(role) => handleRoleSelect(role)} 
-          hideStaffRoles={true}
+          hideStaffRoles={false}
         />
         
         <Form {...form}>
