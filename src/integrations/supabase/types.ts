@@ -143,9 +143,45 @@ export type Database = {
           },
         ]
       }
+      hostel_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string | null
+          hostel_id: string | null
+          id: string
+          rating: number | null
+          user_id: string | null
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string | null
+          hostel_id?: string | null
+          id?: string
+          rating?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string | null
+          hostel_id?: string | null
+          id?: string
+          rating?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hostel_ratings_hostel_id_fkey"
+            columns: ["hostel_id"]
+            isOneToOne: false
+            referencedRelation: "hostels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       hostels: {
         Row: {
           address: string
+          average_rating: number | null
           city: string
           commission_rate: number
           created_at: string | null
@@ -159,10 +195,12 @@ export type Database = {
           phone: string
           photos: string[] | null
           size: string
+          total_ratings: number | null
           updated_at: string | null
         }
         Insert: {
           address: string
+          average_rating?: number | null
           city: string
           commission_rate: number
           created_at?: string | null
@@ -176,10 +214,12 @@ export type Database = {
           phone: string
           photos?: string[] | null
           size: string
+          total_ratings?: number | null
           updated_at?: string | null
         }
         Update: {
           address?: string
+          average_rating?: number | null
           city?: string
           commission_rate?: number
           created_at?: string | null
@@ -193,6 +233,7 @@ export type Database = {
           phone?: string
           photos?: string[] | null
           size?: string
+          total_ratings?: number | null
           updated_at?: string | null
         }
         Relationships: [

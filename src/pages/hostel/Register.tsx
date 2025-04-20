@@ -1,10 +1,12 @@
+
+import { useState } from "react";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { MainNavbar } from "@/components/layout/MainNavbar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Building, Check, ChevronsUpDown, MapPin } from "lucide-react";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -25,15 +27,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   Form,
   FormControl,
   FormDescription,
@@ -52,42 +45,52 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
+const HostelRegisterSchema = z.object({
+  name: z.string().min(3, "Hostel name must be at least 3 characters"),
+  email: z.string().email("Please enter a valid email"),
+  phone: z.string().min(10, "Please enter a valid phone number"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+  size: z.enum([HostelSize.SMALL, HostelSize.MEDIUM, HostelSize.LARGE]),
+  location: z.enum([LocationTier.TIER_1, LocationTier.TIER_2, LocationTier.TIER_3]),
+  address: z.string().min(10, "Address must be at least 10 characters"),
+  city: z.string().min(2, "City name must be at least 2 characters"),
+  description: z.string().optional(),
+}).required();
+
 const HostelRegister = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [showCredentials, setShowCredentials] = useState(false);
-  const [credentials, setCredentials] = useState({ email: "", password: "" });
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const form = useForm<HostelType>({
-    resolver: zodResolver(hostelSchema),
+  const form = useForm<z.infer<typeof HostelRegisterSchema>>({
+    resolver: zodResolver(HostelRegisterSchema),
     defaultValues: {
       name: "",
+      email: "",
+      phone: "",
+      password: "",
       size: HostelSize.MEDIUM,
       location: LocationTier.TIER_2,
       address: "",
       city: "",
-      email: "",
-      phone: "",
       description: "",
     },
   });
 
-  const onSubmit = async (data: HostelType) => {
+  const onSubmit = async (data: z.infer<typeof HostelRegisterSchema>) => {
     setIsLoading(true);
     try {
       const commissionRate = getCommissionRate(data.size, data.location);
       
-      // Create the auth user first
+      // Create user with email and password
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: data.email,
-        password: data.phone.replace(/[^0-9]/g, ''),
+        password: data.password,
         options: {
           data: {
             role: "hostel",
             name: data.name,
-          },
-          emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
         }
       });
 
@@ -97,7 +100,7 @@ const HostelRegister = () => {
       }
 
       if (!authData.user) {
-        throw new Error('Failed to create user account - no user data returned');
+        throw new Error('Failed to create user account');
       }
 
       // Create the hostel record
@@ -112,7 +115,7 @@ const HostelRegister = () => {
           city: data.city,
           email: data.email,
           phone: data.phone,
-          description: data.description,
+          description: data.description || null,
           commission_rate: commissionRate,
           is_verified: false,
           photos: ['/placeholder.svg']
@@ -124,15 +127,12 @@ const HostelRegister = () => {
       }
 
       toast({
-        title: "Hostel registered successfully",
-        description: "Please check your email for verification and login with your registered email.",
+        title: "Hostel Registration Successful",
+        description: "You can now login with your email and password",
       });
 
-      setCredentials({
-        email: data.email,
-        password: data.phone.replace(/[^0-9]/g, '')
-      });
-      setShowCredentials(true);
+      // Redirect to login page
+      navigate('/auth');
 
     } catch (error) {
       console.error("Error registering hostel:", error);
@@ -144,11 +144,6 @@ const HostelRegister = () => {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleContinue = () => {
-    setShowCredentials(false);
-    navigate("/auth");
   };
 
   return (
@@ -168,7 +163,7 @@ const HostelRegister = () => {
             <CardHeader>
               <CardTitle>Hostel Information</CardTitle>
               <CardDescription>
-                Provide the details of your hostel to get started. All fields are required unless marked optional.
+                Provide the details of your hostel to get started. All fields are required.
               </CardDescription>
             </CardHeader>
             
@@ -200,6 +195,24 @@ const HostelRegister = () => {
                             <Input 
                               placeholder="contact@yourhostel.com" 
                               type="email"
+                              {...field} 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={form.control}
+                      name="password"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Password</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="password" 
+                              placeholder="Create a secure password" 
                               {...field} 
                             />
                           </FormControl>
@@ -360,63 +373,6 @@ const HostelRegister = () => {
           </Card>
         </div>
       </div>
-      
-      <Dialog open={showCredentials} onOpenChange={setShowCredentials}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Your Admin Credentials</DialogTitle>
-            <DialogDescription>
-              Please save these credentials securely. You'll need them to log in to your hostel admin dashboard.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Admin Email</p>
-              <div className="flex items-center justify-between rounded-md border p-2">
-                <code className="text-sm">{credentials.email}</code>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(credentials.email);
-                    toast({
-                      title: "Copied!",
-                      description: "Email copied to clipboard",
-                    });
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Admin Password</p>
-              <div className="flex items-center justify-between rounded-md border p-2">
-                <code className="text-sm">{credentials.password}</code>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(credentials.password);
-                    toast({
-                      title: "Copied!",
-                      description: "Password copied to clipboard",
-                    });
-                  }}
-                >
-                  Copy
-                </Button>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button onClick={handleContinue}>Continue to Login</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
