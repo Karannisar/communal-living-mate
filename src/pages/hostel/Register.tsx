@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
@@ -44,6 +43,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
 
 const HostelRegisterSchema = z.object({
   name: z.string().min(3, "Hostel name must be at least 3 characters"),
@@ -59,6 +60,7 @@ const HostelRegisterSchema = z.object({
 
 const HostelRegister = () => {
   const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -79,8 +81,23 @@ const HostelRegister = () => {
 
   const onSubmit = async (data: z.infer<typeof HostelRegisterSchema>) => {
     setIsLoading(true);
+    setErrorMessage(null);
+    
     try {
       const commissionRate = getCommissionRate(data.size, data.location);
+      
+      // Check if user with this email already exists
+      const { data: existingUser, error: userCheckError } = await supabase
+        .from('users')
+        .select('id, email')
+        .eq('email', data.email)
+        .maybeSingle();
+      
+      if (existingUser) {
+        setErrorMessage("A user with this email already exists. Please use a different email or login.");
+        setIsLoading(false);
+        return;
+      }
       
       // Create user with email and password
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -90,17 +107,26 @@ const HostelRegister = () => {
           data: {
             role: "hostel",
             name: data.name,
+            full_name: data.name,
           }
         }
       });
 
       if (authError) {
+        if (authError.message.includes("already registered")) {
+          setErrorMessage("This email is already registered. Please use a different email or login.");
+        } else {
+          setErrorMessage(`Authentication failed: ${authError.message}`);
+        }
         console.error('Auth Error:', authError);
-        throw new Error(`Authentication failed: ${authError.message}`);
+        setIsLoading(false);
+        return;
       }
 
       if (!authData.user) {
-        throw new Error('Failed to create user account');
+        setErrorMessage('Failed to create user account');
+        setIsLoading(false);
+        return;
       }
 
       // Create the hostel record
@@ -118,12 +144,15 @@ const HostelRegister = () => {
           description: data.description || null,
           commission_rate: commissionRate,
           is_verified: false,
+          is_approved: false,
           photos: ['/placeholder.svg']
         });
 
       if (hostelError) {
         console.error('Hostel Error:', hostelError);
-        throw new Error(`Failed to create hostel record: ${hostelError.message}`);
+        setErrorMessage(`Failed to create hostel record: ${hostelError.message}`);
+        setIsLoading(false);
+        return;
       }
 
       toast({
@@ -136,11 +165,7 @@ const HostelRegister = () => {
 
     } catch (error) {
       console.error("Error registering hostel:", error);
-      toast({
-        title: "Registration Failed",
-        description: error instanceof Error ? error.message : "Failed to register hostel",
-        variant: "destructive",
-      });
+      setErrorMessage(error instanceof Error ? error.message : "Failed to register hostel");
     } finally {
       setIsLoading(false);
     }
@@ -158,6 +183,14 @@ const HostelRegister = () => {
               Join our platform and reach thousands of potential residents
             </p>
           </div>
+          
+          {errorMessage && (
+            <Alert variant="destructive" className="mb-6">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Registration Failed</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
           
           <Card>
             <CardHeader>
