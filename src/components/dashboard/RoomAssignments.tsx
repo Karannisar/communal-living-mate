@@ -1,3 +1,4 @@
+
 import { DormAiAssistant } from '@/components/DormAiAssistant';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Form,
   FormControl,
@@ -83,6 +90,7 @@ export function RoomAssignments() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentBooking, setCurrentBooking] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [studentSelectOpen, setStudentSelectOpen] = useState(false);
   const { toast } = useToast();
 
   const form = useForm<z.infer<typeof bookingFormSchema>>({
@@ -93,7 +101,7 @@ export function RoomAssignments() {
       start_date: new Date().toISOString().split('T')[0],
       end_date: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0],
       payment_status: PaymentStatus.pending,
-      status: BookingStatus.PENDING,
+      status: BookingStatus.APPROVED,
     },
   });
 
@@ -134,15 +142,18 @@ export function RoomAssignments() {
             status
           )
         `)
-        .eq("role", "student")
-        .not("bookings.status", "eq", "cancelled");
+        .eq("role", "student");
 
       if (error) throw error;
 
       // Filter out students who already have active bookings
       const availableStudents = (data as Student[] || []).filter(student => {
-        const hasActiveBooking = student.bookings && student.bookings.length > 0;
-        return !hasActiveBooking;
+        if (!student.bookings || student.bookings.length === 0) {
+          return true; // Include students with no bookings
+        }
+        
+        // Check if all student's bookings are cancelled
+        return student.bookings.every(booking => booking.status === BookingStatus.CANCELLED);
       });
 
       setStudents(availableStudents);
@@ -204,6 +215,7 @@ export function RoomAssignments() {
         },
         () => {
           fetchBookings();
+          fetchStudents(); // Refetch students when bookings change
         }
       )
       .subscribe();
@@ -498,7 +510,7 @@ export function RoomAssignments() {
       </CardContent>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-background text-foreground">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Edit Room Assignment" : "Assign New Room"}</DialogTitle>
             <DialogDescription>
@@ -519,18 +531,26 @@ export function RoomAssignments() {
                     <Select 
                       onValueChange={field.onChange} 
                       defaultValue={field.value}
+                      onOpenChange={setStudentSelectOpen}
+                      open={studentSelectOpen}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-background border-border">
                           <SelectValue placeholder="Select a student" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {students.map((student) => (
-                          <SelectItem key={student.id} value={student.id}>
-                            {student.full_name} ({student.email})
-                          </SelectItem>
-                        ))}
+                      <SelectContent className="bg-background">
+                        {students.length === 0 ? (
+                          <div className="p-2 text-center text-sm text-muted-foreground">
+                            No available students
+                          </div>
+                        ) : (
+                          students.map((student) => (
+                            <SelectItem key={student.id} value={student.id}>
+                              {student.full_name} ({student.email})
+                            </SelectItem>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -549,11 +569,11 @@ export function RoomAssignments() {
                       defaultValue={field.value}
                     >
                       <FormControl>
-                        <SelectTrigger>
+                        <SelectTrigger className="bg-background border-border">
                           <SelectValue placeholder="Select a room" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
+                      <SelectContent className="bg-background">
                         {rooms.map((room) => (
                           <SelectItem key={room.id} value={room.id}>
                             {room.room_number} ({room.floor}) - {room.capacity} beds
@@ -579,7 +599,11 @@ export function RoomAssignments() {
                     <FormItem>
                       <FormLabel>Start Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input 
+                          type="date" 
+                          {...field} 
+                          className="bg-background border-border"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -593,7 +617,11 @@ export function RoomAssignments() {
                     <FormItem>
                       <FormLabel>End Date</FormLabel>
                       <FormControl>
-                        <Input type="date" {...field} />
+                        <Input 
+                          type="date" 
+                          {...field}
+                          className="bg-background border-border" 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -613,11 +641,11 @@ export function RoomAssignments() {
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-background border-border">
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-background">
                           <SelectItem value={PaymentStatus.pending}>Pending</SelectItem>
                           <SelectItem value={PaymentStatus.partial}>Partial</SelectItem>
                           <SelectItem value={PaymentStatus.complete}>Complete</SelectItem>
@@ -640,11 +668,11 @@ export function RoomAssignments() {
                         defaultValue={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger>
+                          <SelectTrigger className="bg-background border-border">
                             <SelectValue placeholder="Select status" />
                           </SelectTrigger>
                         </FormControl>
-                        <SelectContent>
+                        <SelectContent className="bg-background">
                           <SelectItem value={BookingStatus.PENDING}>Pending</SelectItem>
                           <SelectItem value={BookingStatus.APPROVED}>Approved</SelectItem>
                           <SelectItem value={BookingStatus.CANCELLED}>Cancelled</SelectItem>
@@ -658,10 +686,15 @@ export function RoomAssignments() {
               </div>
               
               <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsDialogOpen(false)}
+                  className="bg-background"
+                >
                   Cancel
                 </Button>
-                <Button type="submit">
+                <Button type="submit" className="bg-primary text-primary-foreground">
                   {isEditing ? "Update Assignment" : "Assign Room"}
                 </Button>
               </DialogFooter>

@@ -245,6 +245,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      get_room_active_bookings: {
+        Args: { room_id_param: string }
+        Returns: number
+      }
       hash_password: {
         Args: { password: string }
         Returns: string
@@ -255,7 +259,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      user_role: "admin" | "hostel" | "student"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -370,6 +374,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      user_role: ["admin", "hostel", "student"],
+    },
   },
 } as const
